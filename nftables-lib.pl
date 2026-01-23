@@ -224,4 +224,15 @@ else {
 }
 }
 
+# get_webmin_port()
+# Returns the configured Webmin port, or 10000 if unknown
+sub get_webmin_port
+{
+my %miniserv;
+if (&get_miniserv_config(\%miniserv) && $miniserv{'port'} =~ /^\d+$/) {
+    return $miniserv{'port'};
+}
+return 10000;
+}
+
 1;

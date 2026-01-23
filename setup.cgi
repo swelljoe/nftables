@@ -38,7 +38,9 @@ if ($in{'action'} eq 'create') {
 &ui_print_header(undef, $text{'setup_title'}, "", "intro", 1, 1);
 
 print "<h3>$text{'setup_header'}</h3>";
+my $webmin_port = &get_webmin_port();
 print "<p>$text{'setup_desc'}</p>";
+print "<p>",&text('setup_deny_note', $webmin_port),"</p>";
 
 print &ui_form_start("setup.cgi");
 print &ui_hidden("action", "create");
@@ -87,12 +89,25 @@ sub create_allow_all_ruleset
 sub create_deny_incoming_ruleset
 {
     my @tables;
+    my $webmin_port = &get_webmin_port();
     my $table = {
         'name' => 'inet_filter',
         'family' => 'inet',
         'rules' => [
             {
                 'text' => 'ct state established,related accept',
+                'chain' => 'input'
+            },
+            {
+                'text' => 'iif "lo" accept',
+                'chain' => 'input'
+            },
+            {
+                'text' => 'tcp dport 22 accept',
+                'chain' => 'input'
+            },
+            {
+                'text' => "tcp dport $webmin_port accept",
                 'chain' => 'input'
             }
         ],
@@ -124,6 +139,7 @@ sub create_deny_incoming_ruleset
 sub create_deny_all_ruleset
 {
     my @tables;
+    my $webmin_port = &get_webmin_port();
     my $table = {
         'name' => 'inet_filter',
         'family' => 'inet',
@@ -149,6 +165,28 @@ sub create_deny_all_ruleset
             }
         }
     };
+    $table->{'rules'} = [
+        {
+            'text' => 'ct state established,related accept',
+            'chain' => 'output'
+        },
+        {
+            'text' => 'iif "lo" accept',
+            'chain' => 'input'
+        },
+        {
+            'text' => 'oif "lo" accept',
+            'chain' => 'output'
+        },
+        {
+            'text' => 'tcp dport 22 accept',
+            'chain' => 'input'
+        },
+        {
+            'text' => "tcp dport $webmin_port accept",
+            'chain' => 'input'
+        }
+    ];
     push(@tables, $table);
     return @tables;
 }
