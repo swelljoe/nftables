@@ -7,13 +7,18 @@ use strict;
 use warnings;
 our (%in, %text, %config);
 &ReadParse();
-&ui_print_header(undef, $text{'index_title'}, "", "intro", 1, 1);
+my $partial = $in{'partial'};
+if (!$partial) {
+    &ui_print_header(undef, $text{'index_title'}, "", "intro", 1, 1);
+}
 
 # Check for nft command
 my $cmd = $config{'nft_cmd'} || &has_command("nft");
 if (!$cmd) {
     print &text('index_ecommand', "<tt>nft</tt>");
-    &ui_print_footer("/", $text{'index'});
+    if (!$partial) {
+        &ui_print_footer("/", $text{'index'});
+    }
     exit;
 }
 
@@ -22,18 +27,23 @@ my $out = &backquote_command("$cmd list ruleset 2>&1");
 if ($? && $out !~ /no ruleset/i) {
     # If it fails and not just empty
     print &text('index_ekernel', "<pre>$out</pre>");
-    &ui_print_footer("/", $text{'index'});
+    if (!$partial) {
+        &ui_print_footer("/", $text{'index'});
+    }
     exit;
 }
 
 # Load tables
 my @tables = &get_nftables_save();
+my $rules_html = "";
 
 if (!@tables) {
-    print "<b>$text{'index_none'}</b><p>\n";
-    print &ui_buttons_start();
-    print &ui_buttons_row("setup.cgi", $text{'index_setup'}, $text{'index_setupdesc'});
-    print &ui_buttons_end();
+    $rules_html .= "<b>$text{'index_none'}</b><p>\n";
+    $rules_html .= &ui_buttons_start();
+    $rules_html .= &ui_buttons_row("setup.cgi", $text{'index_setup'}, $text{'index_setupdesc'});
+    $rules_html .= &ui_buttons_row("create_table.cgi", $text{'index_table_create'},
+                                   $text{'index_table_createdesc'});
+    $rules_html .= &ui_buttons_end();
 } else {
     # Select table
     if (!defined($in{'table'}) || $in{'table'} !~ /^\d+$/ ||
@@ -46,18 +56,23 @@ if (!@tables) {
         push(@table_opts, [ $i, $t->{'family'}." ".$t->{'name'} ]);
     }
 
-    print &ui_form_start("index.cgi");
-    print &text('index_change')," ";
-    print &ui_select("table", $in{'table'}, \@table_opts, 1, 0, 1);
-    print &ui_form_end();
+    if (!$partial) {
+        print &ui_form_start("index.cgi");
+        print "<div class='nftables_table_select'>\n";
+        print &text('index_change')," ";
+        print &ui_select("table", $in{'table'}, \@table_opts, 1, 0, 1, 0,
+                         "onchange='form.submit()'");
+        print "</div>\n";
+        print &ui_form_end();
+    }
 
     # Identify current table
     my $curr = $tables[$in{'table'}];
 
     if ($curr) {
         # Show chains and rules
-        print &ui_hr();
-        print &ui_columns_start(
+        $rules_html .= &ui_hr();
+        $rules_html .= &ui_columns_start(
             [ $text{'index_chain_col'}, $text{'index_type'},
               $text{'index_hook'}, $text{'index_priority'},
               $text{'index_policy_col'}, $text{'index_rules'} ], 100);
@@ -68,7 +83,7 @@ if (!@tables) {
             my $policy_label = $policy ?
                 ($text{'index_policy_'.lc($policy)} || uc($policy)) : "-";
             my @rules = grep { $_->{'chain'} eq $c } @{$curr->{'rules'}};
-            my $rules_html;
+            my $rules_html_row;
             if (@rules) {
                 my @rows;
                 foreach my $r (@rules) {
@@ -78,30 +93,49 @@ if (!@tables) {
                         &urlize($c)."&idx=$r->{'index'}",
                         $desc));
                 }
-                $rules_html = join("<br>", @rows);
+                $rules_html_row = join("<br>", @rows);
             } else {
-                $rules_html = "<i>$text{'index_rules_none'}</i>";
+                $rules_html_row = "<i>$text{'index_rules_none'}</i>";
             }
-            $rules_html .= "<br>".
+            $rules_html_row .= "<br>".
                 &ui_link("edit_rule.cgi?table=$in{'table'}&chain=".
                          &urlize($c)."&new=1", $text{'index_radd'});
 
-            print &ui_columns_row([
+            $rules_html .= &ui_columns_row([
                 $c,
                 $chain_def->{'type'} || "-",
                 $chain_def->{'hook'} || "-",
                 defined($chain_def->{'priority'}) ? $chain_def->{'priority'} : "-",
                 $policy_label,
-                $rules_html
+                $rules_html_row
             ]);
         }
-        print &ui_columns_end();
+        $rules_html .= &ui_columns_end();
+        $rules_html .= &ui_hr();
+        $rules_html .= &ui_buttons_start();
+        $rules_html .= &ui_buttons_row("delete_table.cgi?table=$in{'table'}",
+                                       $text{'index_table_delete'},
+                                       $text{'index_table_deletedesc'});
+        $rules_html .= &ui_buttons_end();
     }
 }
 
-print &ui_hr();
-print &ui_buttons_start();
-print &ui_buttons_row("apply.cgi", $text{'index_apply'}, $text{'index_applydesc'});
-print &ui_buttons_end();
+if ($partial) {
+    print $rules_html;
+    exit;
+}
+
+print "<div id='nftables_ruleset'>\n";
+print $rules_html;
+print "</div>\n";
+
+if (@tables) {
+    print &ui_hr();
+    print &ui_buttons_start();
+    print &ui_buttons_row("create_table.cgi", $text{'index_table_create'},
+                          $text{'index_table_createdesc'});
+    print &ui_buttons_row("apply.cgi", $text{'index_apply'}, $text{'index_applydesc'});
+    print &ui_buttons_end();
+}
 
 &ui_print_footer("/", $text{'index'});
