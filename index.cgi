@@ -60,8 +60,9 @@ if (!@tables) {
         print &ui_form_start("index.cgi");
         print "<div class='nftables_table_select'>\n";
         print &text('index_change')," ";
-        print &ui_select("table", $in{'table'}, \@table_opts, 1, 0, 1, 0,
-                         "onchange='form.submit()'");
+	print &ui_select("table", $in{'table'}, \@table_opts, 1, 0, 1, 0,
+                         "onchange='this.form.querySelector(\"[name=nft_submit]\").click()'");
+	print &ui_submit("", "nft_submit", 0, "style='display:none'");
         print "</div>\n";
         print &ui_form_end();
     }
