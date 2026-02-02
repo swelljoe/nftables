@@ -11,6 +11,16 @@ our (%in, %text, %config);
 my @tables = &get_nftables_save();
 my $table = $tables[$in{'table'}];
 
+sub join_multi_value
+{
+    my ($v) = @_;
+    return undef if (!defined($v) || $v eq '');
+    my @vals = split(/\0/, $v);
+    @vals = grep { defined($_) && $_ ne '' } @vals;
+    return undef if (!@vals);
+    return join(",", @vals);
+}
+
 if ($in{'delete'}) {
     # Delete the rule
     my $rule = $table->{'rules'}->[$in{'idx'}];
@@ -99,8 +109,10 @@ if ($in{'delete'}) {
             $rule->{'l4proto_family'} = 'meta';
         }
 
-        $rule->{'ct_state'} = (defined($in{'ct_state'}) && $in{'ct_state'} ne '') ? $in{'ct_state'} : undef;
-        $rule->{'tcp_flags'} = (defined($in{'tcp_flags'}) && $in{'tcp_flags'} ne '') ? $in{'tcp_flags'} : undef;
+        my $ct_state = &join_multi_value($in{'ct_state'});
+        my $tcp_flags = &join_multi_value($in{'tcp_flags'});
+        $rule->{'ct_state'} = defined($ct_state) ? $ct_state : undef;
+        $rule->{'tcp_flags'} = defined($tcp_flags) ? $tcp_flags : undef;
         $rule->{'tcp_flags_mask'} = (defined($in{'tcp_flags_mask'}) && $in{'tcp_flags_mask'} ne '') ? $in{'tcp_flags_mask'} : undef;
         $rule->{'limit_rate'} = (defined($in{'limit_rate'}) && $in{'limit_rate'} ne '') ? $in{'limit_rate'} : undef;
         $rule->{'limit_burst'} = (defined($in{'limit_burst'}) && $in{'limit_burst'} ne '') ? $in{'limit_burst'} : undef;

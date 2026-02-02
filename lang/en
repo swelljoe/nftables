@@ -121,6 +121,7 @@ edit_counter=Counter
 edit_counter_enable=Enable counter
 edit_raw_rule=Raw rule
 edit_raw_rule_direct=Edit directly
+edit_advanced=Advanced options
 edit_oif=Outgoing Interface
 edit_iif=Incoming Interface
 edit_if_any=Any

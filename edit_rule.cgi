@@ -17,6 +17,23 @@ my $proto_sel;
 my $icmp_type;
 my $log_enabled;
 my $raw_extra = "";
+my $ct_state_sel;
+my $tcp_flags_sel;
+my $advanced_open;
+
+sub split_multi_value
+{
+    my ($v) = @_;
+    return undef if (!defined($v) || $v eq '');
+    $v =~ s/^\s*\{//;
+    $v =~ s/\}\s*$//;
+    $v =~ s/^\s+//;
+    $v =~ s/\s+$//;
+    return undef if ($v eq '');
+    my @vals = split(/\s*,\s*/, $v);
+    @vals = grep { $_ ne '' } @vals;
+    return \@vals;
+}
 
 if ($in{'new'}) {
     &ui_print_header(undef, $text{'edit_title_new'}, "", "intro", 1, 1);
@@ -53,8 +70,50 @@ if ($rule) {
     }
     $proto_sel ||= 'tcp' if ($in{'new'});
     $icmp_type = $rule->{'icmp_type'} || $rule->{'icmpv6_type'};
+    $ct_state_sel = &split_multi_value($rule->{'ct_state'});
+    $tcp_flags_sel = &split_multi_value($rule->{'tcp_flags'});
     $log_enabled = $rule->{'log'} || $rule->{'log_prefix'} || $rule->{'log_level'};
 }
+$advanced_open = 1 if ($action_sel && ($action_sel eq 'jump' || $action_sel eq 'goto'));
+$advanced_open = 1 if ($rule && (
+    $rule->{'jump'} || $rule->{'goto'} ||
+    $rule->{'iif'} || $rule->{'oif'} ||
+    $icmp_type ||
+    $rule->{'ct_state'} ||
+    $rule->{'tcp_flags'} || $rule->{'tcp_flags_mask'} ||
+    $rule->{'limit_rate'} || $rule->{'limit_burst'} ||
+    $log_enabled ||
+    $rule->{'counter'}
+));
+
+my @icmp_types = qw(
+    echo-reply destination-unreachable source-quench redirect echo-request
+    router-advertisement router-solicitation time-exceeded parameter-problem
+    timestamp-request timestamp-reply info-request info-reply
+    address-mask-request address-mask-reply
+);
+my @icmpv6_types = qw(
+    destination-unreachable packet-too-big time-exceeded parameter-problem
+    echo-request echo-reply mld-listener-query mld-listener-report
+    mld-listener-done mld-listener-reduction nd-router-solicit
+    nd-router-advert nd-neighbor-solicit nd-neighbor-advert nd-redirect
+    router-renumbering ind-neighbor-solicit ind-neighbor-advert
+    mld2-listener-report
+);
+my %icmp_seen;
+my @icmp_type_opts = ( [ "", $text{'edit_proto_any'} ] );
+foreach my $t (@icmp_types, @icmpv6_types) {
+    next if ($icmp_seen{$t}++);
+    push(@icmp_type_opts, [ $t, $t ]);
+}
+my @ct_state_opts = (
+    [ "", $text{'edit_proto_any'} ],
+    map { [ $_, $_ ] } qw(invalid new established related untracked),
+);
+my @tcp_flags_opts = (
+    [ "", $text{'edit_proto_any'} ],
+    map { [ $_, $_ ] } qw(fin syn rst psh ack urg ecn cwr),
+);
 
 print &ui_form_start("save_rule.cgi");
 print &ui_hidden("table", $in{'table'});
@@ -66,11 +125,11 @@ print &ui_hidden("raw_extra", $raw_extra);
 print &ui_table_start($text{'edit_header'}, "width=100%", 2);
 
 # Rule comment
-print &ui_table_row($text{'edit_comment'},
+print &ui_table_row(hlink($text{'edit_comment'}, "comment"),
     &ui_textbox("comment", $rule->{'comment'}, 50));
 
 # Action
-print &ui_table_row($text{'edit_action'},
+print &ui_table_row(hlink($text{'edit_action'}, "action"),
     &ui_select("action", $action_sel,
     [
         [ "accept", $text{'index_accept'} ],
@@ -81,39 +140,14 @@ print &ui_table_row($text{'edit_action'},
         [ "goto", $text{'edit_goto_action'} ],
     ]));
 
-# Jump/Goto target chain
-print &ui_table_row($text{'edit_jump'},
-    &ui_textbox("jump", $rule->{'jump'}, 20));
-print &ui_table_row($text{'edit_goto'},
-    &ui_textbox("goto", $rule->{'goto'}, 20));
-
-# Interfaces
-if ($chain_hook && $chain_hook eq 'input') {
-    # Incoming interface
-    print &ui_table_row($text{'edit_iif'},
-        &interface_choice("iif", $rule->{'iif'}, $text{'edit_if_any'}));
-}
-elsif ($chain_hook && $chain_hook eq 'output') {
-    # Outgoing interface
-    print &ui_table_row($text{'edit_oif'},
-        &interface_choice("oif", $rule->{'oif'}, $text{'edit_if_any'}));
-}
-else {
-    # Forward or unknown chain - allow both
-    print &ui_table_row($text{'edit_iif'},
-        &interface_choice("iif", $rule->{'iif'}, $text{'edit_if_any'}));
-    print &ui_table_row($text{'edit_oif'},
-        &interface_choice("oif", $rule->{'oif'}, $text{'edit_if_any'}));
-}
-
 # Addresses
-print &ui_table_row($text{'edit_saddr'},
+print &ui_table_row(hlink($text{'edit_saddr'}, "saddr"),
     &ui_textbox("saddr", $rule->{'saddr'}, 30));
-print &ui_table_row($text{'edit_daddr'},
+print &ui_table_row(hlink($text{'edit_daddr'}, "daddr"),
     &ui_textbox("daddr", $rule->{'daddr'}, 30));
 
 # Protocol
-print &ui_table_row($text{'edit_proto'},
+print &ui_table_row(hlink($text{'edit_proto'}, "proto"),
     &ui_select("proto", $proto_sel,
     [
         [ "", $text{'edit_proto_any'} ],
@@ -124,46 +158,81 @@ print &ui_table_row($text{'edit_proto'},
     ]));
 
 # Ports
-print &ui_table_row($text{'edit_sport'},
+print &ui_table_row(hlink($text{'edit_sport'}, "sport"),
     &ui_textbox("sport", $rule->{'sport'}, 10));
-print &ui_table_row($text{'edit_dport'},
+print &ui_table_row(hlink($text{'edit_dport'}, "dport"),
     &ui_textbox("dport", $rule->{'dport'}, 10));
 
+print &ui_table_end();
+
+print &ui_hidden_table_start($text{'edit_advanced'}, "width=100%", 2,
+                             "advanced", $advanced_open ? 1 : 0);
+
+# Jump/Goto target chain
+print &ui_table_row(hlink($text{'edit_jump'}, "jump"),
+    &ui_textbox("jump", $rule->{'jump'}, 20));
+print &ui_table_row(hlink($text{'edit_goto'}, "goto"),
+    &ui_textbox("goto", $rule->{'goto'}, 20));
+
+# Interfaces
+if ($chain_hook && $chain_hook eq 'input') {
+    # Incoming interface
+    print &ui_table_row(hlink($text{'edit_iif'}, "iif"),
+        &interface_choice("iif", $rule->{'iif'}, $text{'edit_if_any'}));
+}
+elsif ($chain_hook && $chain_hook eq 'output') {
+    # Outgoing interface
+    print &ui_table_row(hlink($text{'edit_oif'}, "oif"),
+        &interface_choice("oif", $rule->{'oif'}, $text{'edit_if_any'}));
+}
+else {
+    # Forward or unknown chain - allow both
+    print &ui_table_row(hlink($text{'edit_iif'}, "iif"),
+        &interface_choice("iif", $rule->{'iif'}, $text{'edit_if_any'}));
+    print &ui_table_row(hlink($text{'edit_oif'}, "oif"),
+        &interface_choice("oif", $rule->{'oif'}, $text{'edit_if_any'}));
+}
+
 # ICMP type
-print &ui_table_row($text{'edit_icmp_type'},
-    &ui_textbox("icmp_type", $icmp_type, 20));
+print &ui_table_row(hlink($text{'edit_icmp_type'}, "icmp_type"),
+    &ui_select("icmp_type", $icmp_type, \@icmp_type_opts, 1, 0, 1));
 
 # Conntrack state
-print &ui_table_row($text{'edit_ct_state'},
-    &ui_textbox("ct_state", $rule->{'ct_state'}, 30));
+print &ui_table_row(hlink($text{'edit_ct_state'}, "ct_state"),
+    &ui_select("ct_state", $ct_state_sel, \@ct_state_opts, 5, 1, 1));
 
 # TCP flags
-print &ui_table_row($text{'edit_tcp_flags'},
-    &ui_textbox("tcp_flags", $rule->{'tcp_flags'}, 20));
-print &ui_table_row($text{'edit_tcp_flags_mask'},
+print &ui_table_row(hlink($text{'edit_tcp_flags'}, "tcp_flags"),
+    &ui_select("tcp_flags", $tcp_flags_sel, \@tcp_flags_opts, 8, 1, 1));
+print &ui_table_row(hlink($text{'edit_tcp_flags_mask'}, "tcp_flags_mask"),
     &ui_textbox("tcp_flags_mask", $rule->{'tcp_flags_mask'}, 20));
 
 # Limit
-print &ui_table_row($text{'edit_limit_rate'},
+print &ui_table_row(hlink($text{'edit_limit_rate'}, "limit_rate"),
     &ui_textbox("limit_rate", $rule->{'limit_rate'}, 20));
-print &ui_table_row($text{'edit_limit_burst'},
+print &ui_table_row(hlink($text{'edit_limit_burst'}, "limit_burst"),
     &ui_textbox("limit_burst", $rule->{'limit_burst'}, 10));
 
 # Log
-my $log_row = &ui_checkbox("log", 1, $text{'edit_log_enable'}, $log_enabled);
+my $log_row = &ui_checkbox("log", 1, hlink($text{'edit_log_enable'}, "log_enable"), $log_enabled);
 $log_row .= "<br>".&text('edit_log_prefix', &ui_textbox("log_prefix", $rule->{'log_prefix'}, 20));
 $log_row .= " ".&text('edit_log_level', &ui_textbox("log_level", $rule->{'log_level'}, 10));
 print &ui_table_row($text{'edit_log'}, $log_row);
 
 # Counter
-print &ui_table_row($text{'edit_counter'},
+print &ui_table_row(hlink($text{'edit_counter'}, "counter"),
     &ui_checkbox("counter", 1, $text{'edit_counter_enable'}, $rule->{'counter'}));
+
+print &ui_hidden_table_end("advanced");
+
+print &ui_table_start($text{'edit_rule'}, "width=100%", 2);
 
 # Raw rule (read-only unless edit direct is checked)
 my $raw_controls = &ui_checkbox("edit_direct", 1, $text{'edit_raw_rule_direct'}, 0);
 my $raw_area = &ui_textarea("raw_rule", $rule->{'text'}, 4, 60, undef, undef,
                             "readonly='true'");
-print &ui_table_row($text{'edit_raw_rule'}, $raw_controls."<br>".$raw_area);
+print &ui_table_row(hlink($text{'edit_raw_rule'}, "raw_rule"), $raw_controls."<br>".$raw_area,
+                    undef, undef, ["data-column-span='all' data-column-locked='1'"]);
 
 print &ui_table_end();
 my @buttons;
@@ -175,9 +244,29 @@ if ($in{'new'}) {
 }
 print &ui_form_end(\@buttons);
 
+sub js_array
+{
+    my (@vals) = @_;
+    return "[".join(",", map {
+        my $v = $_;
+        $v =~ s/\\/\\\\/g;
+        $v =~ s/"/\\"/g;
+        "\"$v\"";
+    } @vals)."]";
+}
+
+my $icmp_js = &js_array(@icmp_types);
+my $icmpv6_js = &js_array(@icmpv6_types);
+my $icmp_any = $text{'edit_proto_any'};
+$icmp_any =~ s/\\/\\\\/g;
+$icmp_any =~ s/"/\\"/g;
+
+print "<script>\n";
+print "(function() {\n";
+print "  var icmpTypes = $icmp_js;\n";
+print "  var icmpv6Types = $icmpv6_js;\n";
+print "  var icmpAnyLabel = \"$icmp_any\";\n";
 print <<'EOF';
-<script>
-(function() {
   function byName(name) {
     var els = document.getElementsByName(name);
     return els && els.length ? els[0] : null;
@@ -185,6 +274,23 @@ print <<'EOF';
   function val(name) {
     var el = byName(name);
     if (!el) return "";
+    if (el.tagName === "SELECT" && el.multiple) {
+      var vals = [];
+      var sawEmpty = false;
+      for (var i = 0; i < el.options.length; i++) {
+        var opt = el.options[i];
+        if (opt.selected) {
+          if (opt.value === "") sawEmpty = true;
+          else vals.push(opt.value);
+        }
+      }
+      if (vals.length && sawEmpty) {
+        for (var j = 0; j < el.options.length; j++) {
+          if (el.options[j].value === "") el.options[j].selected = false;
+        }
+      }
+      return vals.join(",");
+    }
     if (el.type === "checkbox") {
       return el.checked ? (el.value || "1") : "";
     }
@@ -249,8 +355,15 @@ print <<'EOF';
     if (proto === "icmp" && icmpType) parts.push("icmp type " + icmpType);
     if (proto === "icmpv6" && icmpType) parts.push("icmpv6 type " + icmpType);
     if (!proto && icmpType) {
-      parts.push("meta l4proto icmp");
-      parts.push("icmp type " + icmpType);
+      var inIcmp = icmpTypes.indexOf(icmpType) >= 0;
+      var inIcmpv6 = icmpv6Types.indexOf(icmpType) >= 0;
+      if (inIcmpv6 && !inIcmp) {
+        parts.push("meta l4proto icmpv6");
+        parts.push("icmpv6 type " + icmpType);
+      } else {
+        parts.push("meta l4proto icmp");
+        parts.push("icmp type " + icmpType);
+      }
     }
 
     var tcpFlags = val("tcp_flags");
@@ -323,6 +436,57 @@ print <<'EOF';
     if (!on) buildRule();
   }
 
+  function uniqList(list) {
+    var seen = {};
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var v = list[i];
+      if (seen[v]) continue;
+      seen[v] = true;
+      out.push(v);
+    }
+    return out;
+  }
+
+  function updateIcmpTypes() {
+    var el = byName("icmp_type");
+    if (!el) return;
+    var proto = val("proto");
+    var current = el.value || "";
+    var list;
+    if (proto === "icmp") list = icmpTypes;
+    else if (proto === "icmpv6") list = icmpv6Types;
+    else list = uniqList(icmpTypes.concat(icmpv6Types));
+
+    while (el.options.length) {
+      el.remove(0);
+    }
+    var optAny = document.createElement("option");
+    optAny.value = "";
+    optAny.text = icmpAnyLabel;
+    el.add(optAny);
+    for (var i = 0; i < list.length; i++) {
+      var opt = document.createElement("option");
+      opt.value = list[i];
+      opt.text = list[i];
+      el.add(opt);
+    }
+    if (current && list.indexOf(current) >= 0) el.value = current;
+    else el.value = "";
+  }
+
+  function maybeSetProtoFromIcmp() {
+    var protoEl = byName("proto");
+    if (!protoEl || protoEl.value) return;
+    var t = val("icmp_type");
+    if (!t) return;
+    var inIcmp = icmpTypes.indexOf(t) >= 0;
+    var inIcmpv6 = icmpv6Types.indexOf(t) >= 0;
+    if (inIcmp && !inIcmpv6) protoEl.value = "icmp";
+    else if (inIcmpv6 && !inIcmp) protoEl.value = "icmpv6";
+    if (protoEl.value) updateIcmpTypes();
+  }
+
   function bind() {
     var direct = byName("edit_direct");
     var form = direct ? direct.form : document.forms[0];
@@ -335,9 +499,24 @@ print <<'EOF';
         el.addEventListener("change", toggleDirect);
         continue;
       }
+      if (el.name === "proto") {
+        el.addEventListener("change", function() {
+          updateIcmpTypes();
+          buildRule();
+        });
+        continue;
+      }
+      if (el.name === "icmp_type") {
+        el.addEventListener("change", function() {
+          maybeSetProtoFromIcmp();
+          buildRule();
+        });
+        continue;
+      }
       el.addEventListener("input", buildRule);
       el.addEventListener("change", buildRule);
     }
+    updateIcmpTypes();
     toggleDirect();
     buildRule();
   }
