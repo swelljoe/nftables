@@ -181,6 +181,16 @@ return "ip6" if (defined($addr) && $addr =~ /:/);
 return "ip";
 }
 
+sub validate_chain_base
+{
+my ($type, $hook, $priority, $policy) = @_;
+if (defined($type) || defined($hook) || defined($priority) || defined($policy)) {
+    return 0 if (!defined($type) || !defined($hook) ||
+                 !defined($priority) || !defined($policy));
+}
+return 1;
+}
+
 sub format_addr_expr
 {
 my ($dir, $rule) = @_;

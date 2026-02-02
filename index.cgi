@@ -76,7 +76,8 @@ if (!@tables) {
         $rules_html .= &ui_columns_start(
             [ $text{'index_chain_col'}, $text{'index_type'},
               $text{'index_hook'}, $text{'index_priority'},
-              $text{'index_policy_col'}, $text{'index_rules'} ], 100);
+              $text{'index_policy_col'}, $text{'index_rules'},
+              $text{'index_actions'} ], 100);
 
         foreach my $c (sort keys %{$curr->{'chains'}}) {
             my $chain_def = $curr->{'chains'}->{$c} || { };
@@ -102,18 +103,30 @@ if (!@tables) {
                 &ui_link("edit_rule.cgi?table=$in{'table'}&chain=".
                          &urlize($c)."&new=1", $text{'index_radd'});
 
+            my $actions_html =
+                &ui_link("edit_chain.cgi?table=$in{'table'}&chain=".
+                         &urlize($c), $text{'index_cedit'})."<br>".
+                &ui_link("rename_chain.cgi?table=$in{'table'}&chain=".
+                         &urlize($c), $text{'index_crename'})."<br>".
+                &ui_link("delete_chain.cgi?table=$in{'table'}&chain=".
+                         &urlize($c), $text{'index_cdelete'});
             $rules_html .= &ui_columns_row([
                 $c,
                 $chain_def->{'type'} || "-",
                 $chain_def->{'hook'} || "-",
                 defined($chain_def->{'priority'}) ? $chain_def->{'priority'} : "-",
                 $policy_label,
-                $rules_html_row
+                $rules_html_row,
+                $actions_html
             ]);
         }
         $rules_html .= &ui_columns_end();
         $rules_html .= &ui_hr();
         $rules_html .= &ui_buttons_start();
+        $rules_html .= &ui_buttons_row(
+            "edit_chain.cgi?table=$in{'table'}&new=1",
+            $text{'index_chain_create'},
+            $text{'index_chain_createdesc'});
         $rules_html .= &ui_buttons_row("delete_table.cgi?table=$in{'table'}",
                                        $text{'index_table_delete'},
                                        $text{'index_table_deletedesc'});

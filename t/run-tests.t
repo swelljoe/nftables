@@ -128,4 +128,11 @@ check_fields('ruleset r1', $rules[0], { iif => 'lo', action => 'accept' });
 check_fields('ruleset r2', $rules[1], { saddr => '192.168.1.0/24', proto => 'tcp', dport => '22', action => 'accept', comment => 'ssh' });
 check_fields('ruleset r3', $rules[2], { ct_state => 'established,related', action => 'accept' });
 
+ok(&validate_chain_base('filter', 'input', '0', 'accept'),
+   'chain base allows zero priority');
+ok(!&validate_chain_base('filter', 'input', undef, 'accept'),
+   'chain base missing priority invalid');
+ok(&validate_chain_base(undef, undef, undef, undef),
+   'chain base none set valid');
+
 done_testing();
