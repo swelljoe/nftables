@@ -2,7 +2,7 @@
 # index.cgi
 # Display current nftables configuration
 
-require './nftables-lib.pl';
+require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text, %config);

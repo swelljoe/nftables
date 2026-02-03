@@ -2,7 +2,7 @@
 # create_table.cgi
 # Create a new nftables table
 
-require './nftables-lib.pl';
+require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text);

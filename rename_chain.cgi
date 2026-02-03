@@ -2,7 +2,7 @@
 # rename_chain.cgi
 # Rename an existing chain
 
-require './nftables-lib.pl';
+require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text);

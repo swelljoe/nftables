@@ -2,7 +2,7 @@
 # move_rule.cgi
 # Move a rule up or down within a chain
 
-require './nftables-lib.pl';
+require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text);

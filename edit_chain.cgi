@@ -2,7 +2,7 @@
 # edit_chain.cgi
 # Display a form for creating or editing a chain
 
-require './nftables-lib.pl';
+require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text);

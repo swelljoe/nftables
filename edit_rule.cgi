@@ -2,7 +2,7 @@
 # edit_rule.cgi
 # Display a form for creating or editing a rule
 
-require './nftables-lib.pl';
+require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text, %config);
@@ -24,12 +24,12 @@ my $advanced_open;
 sub split_multi_value
 {
     my ($v) = @_;
-    return undef if (!defined($v) || $v eq '');
+    return if (!defined($v) || $v eq '');
     $v =~ s/^\s*\{//;
     $v =~ s/\}\s*$//;
     $v =~ s/^\s+//;
     $v =~ s/\s+$//;
-    return undef if ($v eq '');
+    return if ($v eq '');
     my @vals = split(/\s*,\s*/, $v);
     @vals = grep { $_ ne '' } @vals;
     return \@vals;

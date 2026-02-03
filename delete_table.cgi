@@ -2,7 +2,7 @@
 # delete_table.cgi
 # Delete an existing nftables table
 
-require './nftables-lib.pl';
+require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text);

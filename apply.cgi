@@ -2,7 +2,7 @@
 # apply.cgi
 # Apply the current configuration
 
-require './nftables-lib.pl';
+require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text);

@@ -2,7 +2,7 @@
 # setup.cgi
 # Create a default nftables ruleset
 
-require './nftables-lib.pl';
+require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text, %config);

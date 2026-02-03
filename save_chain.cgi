@@ -2,7 +2,7 @@
 # save_chain.cgi
 # Save a new or existing chain
 
-require './nftables-lib.pl';
+require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text);

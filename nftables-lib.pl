@@ -1,7 +1,7 @@
 # nftables-lib.pl
 # Functions for reading and writing nftables rules
 
-BEGIN { push(@INC, ".."); };
+BEGIN { push(@INC, ".."); }; ## no critic
 use WebminCore;
 use strict;
 use warnings;
@@ -28,7 +28,13 @@ my $table;
 my $chain;
 my $lnum = 0;
 my $content;
-open(my $fh, $file);
+my $fh;
+if ($file =~ /\|\s*$/) {
+    (my $pipe_cmd = $file) =~ s/\|\s*$//;
+    open($fh, '-|', $pipe_cmd);
+} else {
+    open($fh, '<', $file);
+}
 $content = do { local $/; <$fh> };
 close($fh);
 
@@ -194,13 +200,13 @@ return 1;
 sub move_rule_in_chain
 {
 my ($table, $chain, $idx, $dir) = @_;
-return undef if (!defined($table) || ref($table) ne 'HASH');
-return undef if (!defined($idx) || $idx !~ /^\d+$/);
-return undef if (!defined($chain) || $chain eq '');
-return undef if (!$table->{'rules'} || ref($table->{'rules'}) ne 'ARRAY');
-return undef if ($idx > $#{$table->{'rules'}});
+return if (!defined($table) || ref($table) ne 'HASH');
+return if (!defined($idx) || $idx !~ /^\d+$/);
+return if (!defined($chain) || $chain eq '');
+return if (!$table->{'rules'} || ref($table->{'rules'}) ne 'ARRAY');
+return if ($idx > $#{$table->{'rules'}});
 my $rule = $table->{'rules'}->[$idx];
-return undef if (!$rule || $rule->{'chain'} ne $chain);
+return if (!$rule || $rule->{'chain'} ne $chain);
 
 my @chain_idxs;
 for (my $i = 0; $i < @{$table->{'rules'}}; $i++) {
@@ -215,7 +221,7 @@ for (my $i = 0; $i <= $#chain_idxs; $i++) {
         last;
     }
 }
-return undef if (!defined($pos));
+return if (!defined($pos));
 
 my $swap;
 if ($dir eq 'up') {
@@ -227,7 +233,7 @@ elsif ($dir eq 'down') {
     $swap = $chain_idxs[$pos+1];
 }
 else {
-    return undef;
+    return;
 }
 
 ($table->{'rules'}->[$idx], $table->{'rules'}->[$swap]) =
@@ -245,7 +251,7 @@ sub format_addr_expr
 {
 my ($dir, $rule) = @_;
 my $val = $rule->{$dir};
-return undef if (!defined($val) || $val eq '');
+return if (!defined($val) || $val eq '');
 my $fam = &guess_addr_family($val, $rule->{$dir."_family"});
 return $fam." ".$dir." ".$val;
 }
@@ -254,7 +260,7 @@ sub format_l4proto_expr
 {
 my ($rule) = @_;
 my $proto = $rule->{'l4proto'};
-return undef if (!defined($proto) || $proto eq '');
+return if (!defined($proto) || $proto eq '');
 my $fam = $rule->{'l4proto_family'} || 'meta';
 if ($fam eq 'ip' || $fam eq 'ip6') {
     return $fam." protocol ".$proto;
@@ -266,7 +272,7 @@ sub format_port_expr
 {
 my ($dir, $rule) = @_;
 my $val = $rule->{$dir};
-return undef if (!defined($val) || $val eq '');
+return if (!defined($val) || $val eq '');
 my $proto;
 if ($dir eq 'sport') {
     $proto = $rule->{'sport_proto'} || $rule->{'proto'} || $rule->{'l4proto'};
@@ -274,14 +280,14 @@ if ($dir eq 'sport') {
 else {
     $proto = $rule->{'proto'} || $rule->{'l4proto'};
 }
-return undef if (!defined($proto) || $proto eq '');
+return if (!defined($proto) || $proto eq '');
 return $proto." ".$dir." ".$val;
 }
 
 sub format_tcp_flags_expr
 {
 my ($rule) = @_;
-return undef if (!defined($rule->{'tcp_flags'}) || $rule->{'tcp_flags'} eq '');
+return if (!defined($rule->{'tcp_flags'}) || $rule->{'tcp_flags'} eq '');
 my $val = $rule->{'tcp_flags'};
 if (defined($rule->{'tcp_flags_mask'}) && $rule->{'tcp_flags_mask'} ne '') {
     return "tcp flags & ".$rule->{'tcp_flags_mask'}." == ".$val;
@@ -292,7 +298,7 @@ return "tcp flags ".$val;
 sub format_limit_expr
 {
 my ($rule) = @_;
-return undef if (!defined($rule->{'limit_rate'}) || $rule->{'limit_rate'} eq '');
+return if (!defined($rule->{'limit_rate'}) || $rule->{'limit_rate'} eq '');
 my $out = "limit rate ".$rule->{'limit_rate'};
 if (defined($rule->{'limit_burst'}) && $rule->{'limit_burst'} ne '') {
     my $burst = $rule->{'limit_burst'};
@@ -305,7 +311,7 @@ return $out;
 sub format_log_expr
 {
 my ($rule) = @_;
-return undef if (!$rule->{'log'} && !$rule->{'log_prefix'} && !$rule->{'log_level'});
+return if (!$rule->{'log'} && !$rule->{'log_prefix'} && !$rule->{'log_level'});
 my @p = ("log");
 if (defined($rule->{'log_prefix'}) && $rule->{'log_prefix'} ne '') {
     my $pfx = &escape_nft_string($rule->{'log_prefix'});
@@ -808,7 +814,7 @@ my $file = $config{'save_file'} || "$module_config_directory/nftables.conf";
 if ($config{'direct'}) {
     return &apply_restore($file);
 }
-return undef;
+return;
 }
 
 # apply_restore([file])
@@ -822,7 +828,7 @@ my $out = &backquote_logged("$cmd -f $file 2>&1");
 if ($?) {
     return "<pre>$out</pre>";
 }
-return undef;
+return;
 }
 
 # describe_rule(&rule)

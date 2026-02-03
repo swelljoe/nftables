@@ -2,7 +2,7 @@
 # save_rule.cgi
 # Save a new or existing rule
 
-require './nftables-lib.pl';
+require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text, %config);
@@ -14,10 +14,10 @@ my $table = $tables[$in{'table'}];
 sub join_multi_value
 {
     my ($v) = @_;
-    return undef if (!defined($v) || $v eq '');
+    return if (!defined($v) || $v eq '');
     my @vals = split(/\0/, $v);
     @vals = grep { defined($_) && $_ ne '' } @vals;
-    return undef if (!@vals);
+    return if (!@vals);
     return join(",", @vals);
 }
 
