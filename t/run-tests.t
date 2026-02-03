@@ -135,4 +135,28 @@ ok(!&validate_chain_base('filter', 'input', undef, 'accept'),
 ok(&validate_chain_base(undef, undef, undef, undef),
    'chain base none set valid');
 
+my $table_move = {
+    rules => [
+        { chain => 'input', index => 0, text => 'r0' },
+        { chain => 'input', index => 1, text => 'r1' },
+        { chain => 'forward', index => 2, text => 'r2' },
+        { chain => 'input', index => 3, text => 'r3' },
+    ],
+};
+ok(&move_rule_in_chain($table_move, 'input', 1, 'down'),
+   'move rule down returns true');
+is($table_move->{rules}->[1]->{text}, 'r3', 'rule moved down in array');
+is($table_move->{rules}->[3]->{text}, 'r1', 'rule swapped down in array');
+is($table_move->{rules}->[1]->{index}, 1, 'moved rule index updated');
+is($table_move->{rules}->[3]->{index}, 3, 'swapped rule index updated');
+
+my $table_move2 = {
+    rules => [
+        { chain => 'input', index => 0, text => 'r0' },
+        { chain => 'input', index => 1, text => 'r1' },
+    ],
+};
+is(&move_rule_in_chain($table_move2, 'input', 0, 'up'), 0,
+   'top rule cannot move up');
+
 done_testing();

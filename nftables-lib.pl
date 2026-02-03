@@ -191,6 +191,56 @@ if (defined($type) || defined($hook) || defined($priority) || defined($policy)) 
 return 1;
 }
 
+sub move_rule_in_chain
+{
+my ($table, $chain, $idx, $dir) = @_;
+return undef if (!defined($table) || ref($table) ne 'HASH');
+return undef if (!defined($idx) || $idx !~ /^\d+$/);
+return undef if (!defined($chain) || $chain eq '');
+return undef if (!$table->{'rules'} || ref($table->{'rules'}) ne 'ARRAY');
+return undef if ($idx > $#{$table->{'rules'}});
+my $rule = $table->{'rules'}->[$idx];
+return undef if (!$rule || $rule->{'chain'} ne $chain);
+
+my @chain_idxs;
+for (my $i = 0; $i < @{$table->{'rules'}}; $i++) {
+    my $r = $table->{'rules'}->[$i];
+    next if (!$r || ref($r) ne 'HASH');
+    push(@chain_idxs, $i) if ($r->{'chain'} && $r->{'chain'} eq $chain);
+}
+my $pos;
+for (my $i = 0; $i <= $#chain_idxs; $i++) {
+    if ($chain_idxs[$i] == $idx) {
+        $pos = $i;
+        last;
+    }
+}
+return undef if (!defined($pos));
+
+my $swap;
+if ($dir eq 'up') {
+    return 0 if ($pos == 0);
+    $swap = $chain_idxs[$pos-1];
+}
+elsif ($dir eq 'down') {
+    return 0 if ($pos == $#chain_idxs);
+    $swap = $chain_idxs[$pos+1];
+}
+else {
+    return undef;
+}
+
+($table->{'rules'}->[$idx], $table->{'rules'}->[$swap]) =
+    ($table->{'rules'}->[$swap], $table->{'rules'}->[$idx]);
+
+for (my $i = 0; $i < @{$table->{'rules'}}; $i++) {
+    my $r = $table->{'rules'}->[$i];
+    $r->{'index'} = $i if ($r && ref($r) eq 'HASH');
+}
+
+return 1;
+}
+
 sub format_addr_expr
 {
 my ($dir, $rule) = @_;

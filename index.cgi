@@ -87,21 +87,36 @@ if (!@tables) {
             my @rules = grep { $_->{'chain'} eq $c } @{$curr->{'rules'}};
             my $rules_html_row;
             if (@rules) {
-                my @rows;
+                my $ri = 0;
+                $rules_html_row = "<table class='nftables_rules_table' width='100%'>\n";
                 foreach my $r (@rules) {
                     my $desc = &describe_rule($r);
-                    push(@rows, &ui_link(
+                    my $rule_link = &ui_link(
                         "edit_rule.cgi?table=$in{'table'}&chain=".
                         &urlize($c)."&idx=$r->{'index'}",
-                        $desc));
+                        $desc);
+                    my $move = &ui_up_down_arrows(
+                        "move_rule.cgi?table=$in{'table'}&chain=".
+                        &urlize($c)."&idx=$r->{'index'}&dir=up",
+                        "move_rule.cgi?table=$in{'table'}&chain=".
+                        &urlize($c)."&idx=$r->{'index'}&dir=down",
+                        $ri > 0,
+                        $ri < $#rules);
+                    $rules_html_row .= "<tr><td>$rule_link</td>".
+                                       "<td align='right' style='white-space:nowrap'>$move</td></tr>\n";
+                    $ri++;
                 }
-                $rules_html_row = join("<br>", @rows);
+                $rules_html_row .= "<tr><td colspan='2'>".
+                    &ui_link("edit_rule.cgi?table=$in{'table'}&chain=".
+                             &urlize($c)."&new=1", $text{'index_radd'}).
+                    "</td></tr>\n";
+                $rules_html_row .= "</table>";
             } else {
                 $rules_html_row = "<i>$text{'index_rules_none'}</i>";
+                $rules_html_row .= "<br>".
+                    &ui_link("edit_rule.cgi?table=$in{'table'}&chain=".
+                             &urlize($c)."&new=1", $text{'index_radd'});
             }
-            $rules_html_row .= "<br>".
-                &ui_link("edit_rule.cgi?table=$in{'table'}&chain=".
-                         &urlize($c)."&new=1", $text{'index_radd'});
 
             my $actions_html =
                 &ui_link("edit_chain.cgi?table=$in{'table'}&chain=".
