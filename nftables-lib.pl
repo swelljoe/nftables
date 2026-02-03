@@ -26,6 +26,10 @@ return ( ) if (!$file);
 my @rv;
 my $table;
 my $chain;
+my $set;
+my $set_depth = 0;
+my $set_elem_open = 0;
+my $set_elem_buf = '';
 my $lnum = 0;
 my $content;
 my $fh;
@@ -43,6 +47,59 @@ for(my $i=0; $i<@lines; $i++) {
     my $line = $lines[$i];
     $lnum++;
     $line =~ s/#.*$//; # Ignore comments for now
+
+    if ($set) {
+        my $sline = $line;
+        $sline =~ s/^\s+//;
+        $sline =~ s/\s+$//;
+        if ($set_elem_open) {
+            if ($sline =~ /(.*)\}/) {
+                $set_elem_buf .= " ".$1;
+                $set_elem_open = 0;
+                $set_elem_buf =~ s/;\s*$//;
+                $set->{'elements'} = parse_set_elements_string($set_elem_buf);
+                $set_elem_buf = '';
+            }
+            else {
+                $set_elem_buf .= " ".$sline if ($sline ne '');
+            }
+        }
+        else {
+            if ($sline =~ /^type\s+(\S+)\s*;?$/) {
+                $set->{'type'} = $1;
+                $set->{'type'} =~ s/;\s*$//;
+            }
+            elsif ($sline =~ /^flags\s+(.+?)\s*;?$/) {
+                $set->{'flags'} = $1;
+            }
+            elsif ($sline =~ /^elements\s*=\s*\{(.*)$/) {
+                my $rest = $1;
+                if ($rest =~ /(.*)\}/) {
+                    my $content = $1;
+                    $content =~ s/;\s*$//;
+                    $set->{'elements'} = parse_set_elements_string($content);
+                }
+                else {
+                    $set_elem_open = 1;
+                    $set_elem_buf = $rest;
+                }
+            }
+            elsif ($sline ne '' && $sline ne '}') {
+                push(@{$set->{'raw_lines'}}, $sline);
+            }
+        }
+
+        my $opens = () = $line =~ /\{/g;
+        my $closes = () = $line =~ /\}/g;
+        $set_depth += $opens - $closes;
+        if ($set_depth <= 0) {
+            $set = undef;
+            $set_depth = 0;
+            $set_elem_open = 0;
+            $set_elem_buf = '';
+        }
+        next;
+    }
     
     if ($line =~ /^table\s+(\S+)\s+(\S+)\s+\{/) {
         # Start of a table
@@ -50,9 +107,27 @@ for(my $i=0; $i<@lines; $i++) {
                    'family' => $1,
                    'line' => $lnum,
                    'rules' => [ ],
-                   'chains' => { } };
+                   'chains' => { },
+                   'sets' => { } };
         push(@rv, $table);
         $chain = undef;
+    }
+    elsif ($line =~ /^\s*set\s+(\S+)\s+\{/) {
+        # Start of a set
+        if ($table) {
+            my $setname = $1;
+            $set = {
+                'name' => $setname,
+                'line' => $lnum,
+                'elements' => [ ],
+                'raw_lines' => [ ],
+            };
+            $table->{'sets'}->{$setname} = $set;
+            $set_depth = () = $line =~ /\{/g;
+            $set_depth -= () = $line =~ /\}/g;
+            $set_elem_open = 0;
+            $set_elem_buf = '';
+        }
     }
     elsif ($line =~ /^\s*chain\s+(\S+)\s+\{/) {
         # Start of a chain
@@ -752,6 +827,103 @@ $text =~ s/\s+$//;
 return $text;
 }
 
+sub parse_set_elements_string
+{
+my ($text) = @_;
+return [ ] if (!defined($text));
+$text =~ s/^\s+//;
+$text =~ s/\s+$//;
+return [ ] if ($text eq '');
+my @vals = split(/\s*,\s*/, $text);
+@vals = grep { defined($_) && $_ ne '' } @vals;
+return \@vals;
+}
+
+sub parse_set_elements_input
+{
+my ($text) = @_;
+return [ ] if (!defined($text));
+$text =~ s/\r//g;
+$text =~ s/^\s+//;
+$text =~ s/\s+$//;
+return [ ] if ($text eq '');
+$text =~ s/\n/,/g;
+return parse_set_elements_string($text);
+}
+
+sub set_elements_text
+{
+my ($set) = @_;
+return "" if (!$set || ref($set) ne 'HASH');
+return "" if (!$set->{'elements'} || ref($set->{'elements'}) ne 'ARRAY');
+return join("\n", @{$set->{'elements'}});
+}
+
+sub set_elements_summary
+{
+my ($set) = @_;
+return "-" if (!$set || ref($set) ne 'HASH');
+return "-" if (!$set->{'elements'} || ref($set->{'elements'}) ne 'ARRAY');
+my @elems = @{$set->{'elements'}};
+return "-" if (!@elems);
+my $max = 3;
+my $preview = join(", ", @elems[0 .. ($#elems < $max-1 ? $#elems : $max-1)]);
+if (@elems > $max) {
+    $preview .= ", ...";
+}
+return $preview;
+}
+
+sub set_type_kind
+{
+my ($type) = @_;
+return if (!defined($type));
+return 'addr' if ($type =~ /addr$/);
+return 'port' if ($type =~ /(service|port)$/);
+return;
+}
+
+sub set_type_family
+{
+my ($type) = @_;
+return if (!defined($type));
+return 'ip6' if ($type eq 'ipv6_addr');
+return 'ip' if ($type eq 'ipv4_addr');
+return;
+}
+
+sub set_name_from_value
+{
+my ($val) = @_;
+return if (!defined($val));
+return $1 if ($val =~ /^\@(\S+)$/);
+return;
+}
+
+sub rule_uses_set
+{
+my ($rule, $setname) = @_;
+return 0 if (!$rule || !$setname);
+foreach my $k (qw(saddr daddr sport dport)) {
+    return 1 if (defined($rule->{$k}) && $rule->{$k} eq '@'.$setname);
+}
+return 1 if ($rule->{'text'} && $rule->{'text'} =~ /\@\Q$setname\E\b/);
+return 0;
+}
+
+sub count_set_references
+{
+my ($table, $setname) = @_;
+return 0 if (!$table || ref($table) ne 'HASH' || !$setname);
+return 0 if (!$table->{'rules'} || ref($table->{'rules'}) ne 'ARRAY');
+my $count = 0;
+foreach my $r (@{$table->{'rules'}}) {
+    next if (!$r || ref($r) ne 'HASH');
+    $count++ if (rule_uses_set($r, $setname));
+}
+return $count;
+}
+
 
 # dump_nftables_save(@tables)
 # Returns a string representation of the firewall rules
@@ -764,6 +936,28 @@ foreach my $t (@tables) {
         $rv .= "table $t->{'family'} $t->{'name'} {\n";
     } else {
         $rv .= "table $t->{'name'} {\n";
+    }
+
+    if ($t->{'sets'} && ref($t->{'sets'}) eq 'HASH') {
+        foreach my $s (sort keys %{$t->{'sets'}}) {
+            my $set = $t->{'sets'}->{$s};
+            next if (!$set || ref($set) ne 'HASH');
+            $rv .= "\tset $s {\n";
+            $rv .= "\t\ttype $set->{'type'};\n" if ($set->{'type'});
+            $rv .= "\t\tflags $set->{'flags'};\n" if ($set->{'flags'});
+            if ($set->{'raw_lines'} && ref($set->{'raw_lines'}) eq 'ARRAY') {
+                foreach my $l (@{$set->{'raw_lines'}}) {
+                    next if (!defined($l) || $l eq '');
+                    $rv .= "\t\t$l\n";
+                }
+            }
+            if ($set->{'elements'} && ref($set->{'elements'}) eq 'ARRAY' &&
+                @{$set->{'elements'}}) {
+                my $el = join(", ", @{$set->{'elements'}});
+                $rv .= "\t\telements = { $el }\n";
+            }
+            $rv .= "\t}\n";
+        }
     }
     
     foreach my $c (keys %{$t->{'chains'}}) {

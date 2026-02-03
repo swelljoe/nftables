@@ -71,6 +71,42 @@ if (!@tables) {
     my $curr = $tables[$in{'table'}];
 
     if ($curr) {
+        # Show sets
+        $rules_html .= ui_hr();
+        $rules_html .= "<b>$text{'index_sets'}</b><br>\n";
+        if ($curr->{'sets'} && ref($curr->{'sets'}) eq 'HASH' &&
+            keys %{$curr->{'sets'}}) {
+            $rules_html .= ui_columns_start(
+                [ $text{'index_set_name'}, $text{'index_set_type'},
+                  $text{'index_set_flags'}, $text{'index_set_elements'},
+                  $text{'index_set_actions'} ], 100);
+            foreach my $s (sort keys %{$curr->{'sets'}}) {
+                my $set = $curr->{'sets'}->{$s} || { };
+                my $actions_html =
+                    ui_link("edit_set.cgi?table=$in{'table'}&set=".
+                            urlize($s), $text{'index_set_edit'})."<br>".
+                    ui_link("delete_set.cgi?table=$in{'table'}&set=".
+                            urlize($s), $text{'index_set_delete'});
+                $rules_html .= ui_columns_row([
+                    $s,
+                    $set->{'type'} || "-",
+                    $set->{'flags'} || "-",
+                    set_elements_summary($set),
+                    $actions_html
+                ]);
+            }
+            $rules_html .= ui_columns_end();
+        }
+        else {
+            $rules_html .= "<i>$text{'index_sets_none'}</i><br>\n";
+        }
+        $rules_html .= ui_buttons_start();
+        $rules_html .= ui_buttons_row(
+            "edit_set.cgi?table=$in{'table'}&new=1",
+            $text{'index_set_create'},
+            $text{'index_set_createdesc'});
+        $rules_html .= ui_buttons_end();
+
         # Show chains and rules
         $rules_html .= ui_hr();
         $rules_html .= ui_columns_start(

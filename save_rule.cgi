@@ -11,6 +11,13 @@ error_setup($text{'save_err'});
 my @tables = get_nftables_save();
 my $table = $tables[$in{'table'}];
 
+foreach my $sfield (qw(saddr_set daddr_set sport_set dport_set)) {
+    if ($in{$sfield}) {
+        $table->{'sets'}->{$in{$sfield}} ||
+            error(text('save_set_missing', $in{$sfield}));
+    }
+}
+
 sub join_multi_value
 {
     my ($v) = @_;
@@ -60,15 +67,31 @@ if ($in{'delete'}) {
             $rule->{'action'} = $action;
         }
 
-        $rule->{'saddr'} = (defined($in{'saddr'}) && $in{'saddr'} ne '') ? $in{'saddr'} : undef;
-        $rule->{'daddr'} = (defined($in{'daddr'}) && $in{'daddr'} ne '') ? $in{'daddr'} : undef;
+        my $saddr = $in{'saddr'};
+        my $daddr = $in{'daddr'};
+        $saddr = '@'.$in{'saddr_set'} if ($in{'saddr_set'});
+        $daddr = '@'.$in{'daddr_set'} if ($in{'daddr_set'});
+        $rule->{'saddr'} = (defined($saddr) && $saddr ne '') ? $saddr : undef;
+        $rule->{'daddr'} = (defined($daddr) && $daddr ne '') ? $daddr : undef;
         $rule->{'saddr_family'} = $rule->{'saddr'} ? guess_addr_family($rule->{'saddr'}) : undef;
         $rule->{'daddr_family'} = $rule->{'daddr'} ? guess_addr_family($rule->{'daddr'}) : undef;
+        if ($rule->{'saddr'} && $rule->{'saddr'} =~ /^\@(\S+)/) {
+            my $fam = set_type_family($table->{'sets'}->{$1}->{'type'});
+            $rule->{'saddr_family'} = $fam if ($fam);
+        }
+        if ($rule->{'daddr'} && $rule->{'daddr'} =~ /^\@(\S+)/) {
+            my $fam = set_type_family($table->{'sets'}->{$1}->{'type'});
+            $rule->{'daddr_family'} = $fam if ($fam);
+        }
 
         my $proto = $in{'proto'};
         $proto = undef if (defined($proto) && $proto eq '');
-        $rule->{'sport'} = (defined($in{'sport'}) && $in{'sport'} ne '') ? $in{'sport'} : undef;
-        $rule->{'dport'} = (defined($in{'dport'}) && $in{'dport'} ne '') ? $in{'dport'} : undef;
+        my $sport = $in{'sport'};
+        my $dport = $in{'dport'};
+        $sport = '@'.$in{'sport_set'} if ($in{'sport_set'});
+        $dport = '@'.$in{'dport_set'} if ($in{'dport_set'});
+        $rule->{'sport'} = (defined($sport) && $sport ne '') ? $sport : undef;
+        $rule->{'dport'} = (defined($dport) && $dport ne '') ? $dport : undef;
         if (!$proto && ($rule->{'sport'} || $rule->{'dport'})) {
             $proto = 'tcp';
         }

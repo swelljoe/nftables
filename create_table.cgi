@@ -29,7 +29,8 @@ if ($in{'create'}) {
     push(@tables, { 'name' => $name,
                     'family' => $family,
                     'rules' => [],
-                    'chains' => {} });
+                    'chains' => {},
+                    'sets' => {} });
     my $err = save_configuration(@tables);
     error(text('create_failed', $err)) if ($err);
     webmin_log("create", "table", $name, { 'family' => $family });
@@ -52,4 +53,3 @@ print ui_table_end();
 
 print ui_form_end([ [ undef, $text{'create_ok'} ] ]);
 ui_print_footer("index.cgi", $text{'index_return'});
-

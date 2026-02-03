@@ -128,6 +128,29 @@ check_fields('ruleset r1', $rules[0], { iif => 'lo', action => 'accept' });
 check_fields('ruleset r2', $rules[1], { saddr => '192.168.1.0/24', proto => 'tcp', dport => '22', action => 'accept', comment => 'ssh' });
 check_fields('ruleset r3', $rules[2], { ct_state => 'established,related', action => 'accept' });
 
+my $ruleset_sets = "$bindir/rulesets/sets.nft";
+my @tables_sets = get_nftables_save($ruleset_sets);
+ok(@tables_sets == 1, 'sets ruleset table count');
+my $ts = $tables_sets[0];
+ok($ts->{sets} && $ts->{sets}->{trusted_v4}, 'trusted_v4 set present');
+is($ts->{sets}->{trusted_v4}->{type}, 'ipv4_addr', 'trusted_v4 type');
+is($ts->{sets}->{trusted_v4}->{flags}, 'interval', 'trusted_v4 flags');
+is_deeply($ts->{sets}->{trusted_v4}->{elements},
+          [ '192.168.1.0/24', '10.0.0.1' ],
+          'trusted_v4 elements');
+ok($ts->{sets}->{web_ports}, 'web_ports set present');
+is($ts->{sets}->{web_ports}->{type}, 'inet_service', 'web_ports type');
+is_deeply($ts->{sets}->{web_ports}->{elements},
+          [ '80', '443' ],
+          'web_ports elements');
+
+my $rset = $ts->{rules}->[0];
+check_fields('set rule', $rset,
+             { saddr => '@trusted_v4', proto => 'tcp', dport => '@web_ports', action => 'accept' });
+my $rset_out = format_rule_text($rset);
+like($rset_out, qr/\@trusted_v4/, 'set rule format preserves address set');
+like($rset_out, qr/\@web_ports/, 'set rule format preserves port set');
+
 ok(validate_chain_base('filter', 'input', '0', 'accept'),
    'chain base allows zero priority');
 ok(!validate_chain_base('filter', 'input', undef, 'accept'),

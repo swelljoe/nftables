@@ -20,6 +20,17 @@ my $raw_extra = "";
 my $ct_state_sel;
 my $tcp_flags_sel;
 my $advanced_open;
+my $saddr_set;
+my $daddr_set;
+my $sport_set;
+my $dport_set;
+my $saddr_val;
+my $daddr_val;
+my $sport_val;
+my $dport_val;
+my @addr_set_opts;
+my @port_set_opts;
+my %set_families;
 
 sub split_multi_value
 {
@@ -73,6 +84,49 @@ if ($rule) {
     $ct_state_sel = split_multi_value($rule->{'ct_state'});
     $tcp_flags_sel = split_multi_value($rule->{'tcp_flags'});
     $log_enabled = $rule->{'log'} || $rule->{'log_prefix'} || $rule->{'log_level'};
+}
+$saddr_set = set_name_from_value($rule->{'saddr'});
+$daddr_set = set_name_from_value($rule->{'daddr'});
+$sport_set = set_name_from_value($rule->{'sport'});
+$dport_set = set_name_from_value($rule->{'dport'});
+$saddr_val = $saddr_set ? "" : $rule->{'saddr'};
+$daddr_val = $daddr_set ? "" : $rule->{'daddr'};
+$sport_val = $sport_set ? "" : $rule->{'sport'};
+$dport_val = $dport_set ? "" : $rule->{'dport'};
+
+@addr_set_opts = ( [ "", $text{'edit_set_none'} ] );
+@port_set_opts = ( [ "", $text{'edit_set_none'} ] );
+my %addr_set_seen;
+my %port_set_seen;
+if ($table && $table->{'sets'} && ref($table->{'sets'}) eq 'HASH') {
+    foreach my $s (sort keys %{$table->{'sets'}}) {
+        my $set = $table->{'sets'}->{$s} || { };
+        my $label = $s;
+        $label .= " ($set->{'type'})" if ($set->{'type'});
+        my $kind = set_type_kind($set->{'type'});
+        if (!$kind || $kind eq 'addr') {
+            push(@addr_set_opts, [ $s, $label ]);
+            $addr_set_seen{$s} = 1;
+        }
+        if (!$kind || $kind eq 'port') {
+            push(@port_set_opts, [ $s, $label ]);
+            $port_set_seen{$s} = 1;
+        }
+        my $fam = set_type_family($set->{'type'});
+        $set_families{$s} = $fam if ($fam);
+    }
+}
+if ($saddr_set && !$addr_set_seen{$saddr_set}) {
+    push(@addr_set_opts, [ $saddr_set, $saddr_set ]);
+}
+if ($daddr_set && !$addr_set_seen{$daddr_set}) {
+    push(@addr_set_opts, [ $daddr_set, $daddr_set ]);
+}
+if ($sport_set && !$port_set_seen{$sport_set}) {
+    push(@port_set_opts, [ $sport_set, $sport_set ]);
+}
+if ($dport_set && !$port_set_seen{$dport_set}) {
+    push(@port_set_opts, [ $dport_set, $dport_set ]);
 }
 $advanced_open = 1 if ($action_sel && ($action_sel eq 'jump' || $action_sel eq 'goto'));
 $advanced_open = 1 if ($rule && (
@@ -141,10 +195,19 @@ print ui_table_row(hlink($text{'edit_action'}, "action"),
     ]));
 
 # Addresses
-print ui_table_row(hlink($text{'edit_saddr'}, "saddr"),
-    ui_textbox("saddr", $rule->{'saddr'}, 30));
-print ui_table_row(hlink($text{'edit_daddr'}, "daddr"),
-    ui_textbox("daddr", $rule->{'daddr'}, 30));
+my $saddr_row = ui_textbox("saddr", $saddr_val, 30);
+if (@addr_set_opts > 1) {
+    $saddr_row .= "<br>".text('edit_saddr_set',
+                               ui_select("saddr_set", $saddr_set, \@addr_set_opts, 1, 0, 1));
+}
+print ui_table_row(hlink($text{'edit_saddr'}, "saddr"), $saddr_row);
+
+my $daddr_row = ui_textbox("daddr", $daddr_val, 30);
+if (@addr_set_opts > 1) {
+    $daddr_row .= "<br>".text('edit_daddr_set',
+                               ui_select("daddr_set", $daddr_set, \@addr_set_opts, 1, 0, 1));
+}
+print ui_table_row(hlink($text{'edit_daddr'}, "daddr"), $daddr_row);
 
 # Protocol
 print ui_table_row(hlink($text{'edit_proto'}, "proto"),
@@ -158,10 +221,19 @@ print ui_table_row(hlink($text{'edit_proto'}, "proto"),
     ]));
 
 # Ports
-print ui_table_row(hlink($text{'edit_sport'}, "sport"),
-    ui_textbox("sport", $rule->{'sport'}, 10));
-print ui_table_row(hlink($text{'edit_dport'}, "dport"),
-    ui_textbox("dport", $rule->{'dport'}, 10));
+my $sport_row = ui_textbox("sport", $sport_val, 10);
+if (@port_set_opts > 1) {
+    $sport_row .= "<br>".text('edit_sport_set',
+                               ui_select("sport_set", $sport_set, \@port_set_opts, 1, 0, 1));
+}
+print ui_table_row(hlink($text{'edit_sport'}, "sport"), $sport_row);
+
+my $dport_row = ui_textbox("dport", $dport_val, 10);
+if (@port_set_opts > 1) {
+    $dport_row .= "<br>".text('edit_dport_set',
+                               ui_select("dport_set", $dport_set, \@port_set_opts, 1, 0, 1));
+}
+print ui_table_row(hlink($text{'edit_dport'}, "dport"), $dport_row);
 
 print ui_table_end();
 
@@ -255,17 +327,33 @@ sub js_array
     } @vals)."]";
 }
 
+sub js_object
+{
+    my (%vals) = @_;
+    return "{".join(",", map {
+        my $k = $_;
+        my $v = $vals{$k};
+        $k =~ s/\\/\\\\/g;
+        $k =~ s/"/\\"/g;
+        $v =~ s/\\/\\\\/g if (defined($v));
+        $v =~ s/"/\\"/g if (defined($v));
+        "\"$k\":\"$v\"";
+    } sort keys %vals)."}";
+}
+
 my $icmp_js = js_array(@icmp_types);
 my $icmpv6_js = js_array(@icmpv6_types);
 my $icmp_any = $text{'edit_proto_any'};
 $icmp_any =~ s/\\/\\\\/g;
 $icmp_any =~ s/"/\\"/g;
+my $set_fam_js = js_object(%set_families);
 
 print "<script>\n";
 print "(function() {\n";
 print "  var icmpTypes = $icmp_js;\n";
 print "  var icmpv6Types = $icmpv6_js;\n";
 print "  var icmpAnyLabel = \"$icmp_any\";\n";
+print "  var setFamilies = $set_fam_js;\n";
 print <<'EOF';
   function byName(name) {
     var els = document.getElementsByName(name);
@@ -312,6 +400,17 @@ print <<'EOF';
   function guessFamily(addr) {
     return addr.indexOf(":") >= 0 ? "ip6" : "ip";
   }
+  function familyForSet(name) {
+    return setFamilies && setFamilies[name] ? setFamilies[name] : "";
+  }
+  function familyForValue(val) {
+    if (!val) return "";
+    if (val.charAt(0) === "@") {
+      var fam = familyForSet(val.substr(1));
+      if (fam) return fam;
+    }
+    return guessFamily(val);
+  }
   function buildRule() {
     var direct = byName("edit_direct");
     if (direct && direct.checked) return;
@@ -322,14 +421,28 @@ print <<'EOF';
     var oif = ifaceVal("oif");
     if (oif) parts.push("oif \"" + escapeNft(oif) + "\"");
 
+    var saddrSet = val("saddr_set");
     var saddr = val("saddr");
-    if (saddr) parts.push(guessFamily(saddr) + " saddr " + saddr);
+    if (saddrSet) {
+      var sf = familyForSet(saddrSet) || guessFamily("@" + saddrSet);
+      parts.push(sf + " saddr @" + saddrSet);
+    } else if (saddr) {
+      parts.push(familyForValue(saddr) + " saddr " + saddr);
+    }
+    var daddrSet = val("daddr_set");
     var daddr = val("daddr");
-    if (daddr) parts.push(guessFamily(daddr) + " daddr " + daddr);
+    if (daddrSet) {
+      var df = familyForSet(daddrSet) || guessFamily("@" + daddrSet);
+      parts.push(df + " daddr @" + daddrSet);
+    } else if (daddr) {
+      parts.push(familyForValue(daddr) + " daddr " + daddr);
+    }
 
     var proto = val("proto");
-    var sport = val("sport");
-    var dport = val("dport");
+    var sportSet = val("sport_set");
+    var dportSet = val("dport_set");
+    var sport = sportSet ? ("@" + sportSet) : val("sport");
+    var dport = dportSet ? ("@" + dportSet) : val("dport");
     var icmpType = val("icmp_type");
     if (!proto && (sport || dport)) {
       proto = "tcp";

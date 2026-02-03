@@ -61,6 +61,7 @@ sub create_allow_all_ruleset
         'name' => 'inet_filter',
         'family' => 'inet',
         'rules' => [],
+        'sets' => {},
         'chains' => {
             'input' => {
                 'type' => 'filter',
@@ -111,6 +112,7 @@ sub create_deny_incoming_ruleset
                 'chain' => 'input'
             }
         ],
+        'sets' => {},
         'chains' => {
             'input' => {
                 'type' => 'filter',
@@ -144,6 +146,7 @@ sub create_deny_all_ruleset
         'name' => 'inet_filter',
         'family' => 'inet',
         'rules' => [],
+        'sets' => {},
         'chains' => {
             'input' => {
                 'type' => 'filter',
