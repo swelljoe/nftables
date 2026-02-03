@@ -6,11 +6,11 @@ require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text);
-&ReadParse();
-&error_setup($text{'apply_err'});
+ReadParse();
+error_setup($text{'apply_err'});
 
-my @tables = &get_nftables_save();
-my $err = &apply_restore();
-&error($err) if ($err);
+my @tables = get_nftables_save();
+my $err = apply_restore();
+error($err) if ($err);
 
-&redirect("index.cgi");
+redirect("index.cgi");

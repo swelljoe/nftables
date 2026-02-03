@@ -6,23 +6,23 @@ require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text);
-&ReadParse();
+ReadParse();
 
-my @tables = &get_nftables_save();
+my @tables = get_nftables_save();
 my $table = $tables[$in{'table'}];
-$table || &error($text{'chain_notable'});
+$table || error($text{'chain_notable'});
 
 my $chain = { };
 my $chain_name = "";
 my $is_new = $in{'new'} ? 1 : 0;
 
 if ($is_new) {
-    &ui_print_header(undef, $text{'chain_title_new'}, "", "intro", 1, 1);
+    ui_print_header(undef, $text{'chain_title_new'}, "", "intro", 1, 1);
 } else {
     $chain_name = $in{'chain'};
     $chain = $table->{'chains'}->{$chain_name};
-    $chain || &error($text{'chain_nochain'});
-    &ui_print_header(undef, $text{'chain_title_edit'}, "", "intro", 1, 1);
+    $chain || error($text{'chain_nochain'});
+    ui_print_header(undef, $text{'chain_title_edit'}, "", "intro", 1, 1);
 }
 
 my @type_opts = (
@@ -38,29 +38,29 @@ my @policy_opts = (
     map { [ $_, $_ ] } qw(accept drop reject return queue continue)
 );
 
-print &ui_form_start("save_chain.cgi");
-print &ui_hidden("table", $in{'table'});
-print &ui_hidden("new", $is_new);
+print ui_form_start("save_chain.cgi");
+print ui_hidden("table", $in{'table'});
+print ui_hidden("new", $is_new);
 
-print &ui_table_start($text{'chain_header'}, "width=100%", 2);
+print ui_table_start($text{'chain_header'}, "width=100%", 2);
 
 my $name_tags = $is_new ? undef : "readonly";
-print &ui_table_row(hlink($text{'chain_name'}, "chain_name"),
-    &ui_textbox("chain_name", $chain_name, 20, 0, undef, $name_tags));
+print ui_table_row(hlink($text{'chain_name'}, "chain_name"),
+    ui_textbox("chain_name", $chain_name, 20, 0, undef, $name_tags));
 
-print &ui_table_row(hlink($text{'chain_type'}, "chain_type"),
-    &ui_select("chain_type", $chain->{'type'}, \@type_opts, 1, 0, 1, 0,
+print ui_table_row(hlink($text{'chain_type'}, "chain_type"),
+    ui_select("chain_type", $chain->{'type'}, \@type_opts, 1, 0, 1, 0,
                "onchange='toggle_chain_base()'"));
-print &ui_table_row(hlink($text{'chain_hook'}, "chain_hook"),
-    &ui_select("chain_hook", $chain->{'hook'}, \@hook_opts, 1, 0, 1));
-print &ui_table_row(hlink($text{'chain_priority'}, "chain_priority"),
-    &ui_textbox("chain_priority", $chain->{'priority'}, 10));
-print &ui_table_row(hlink($text{'chain_policy'}, "chain_policy"),
-    &ui_select("chain_policy", $chain->{'policy'}, \@policy_opts, 1, 0, 1));
+print ui_table_row(hlink($text{'chain_hook'}, "chain_hook"),
+    ui_select("chain_hook", $chain->{'hook'}, \@hook_opts, 1, 0, 1));
+print ui_table_row(hlink($text{'chain_priority'}, "chain_priority"),
+    ui_textbox("chain_priority", $chain->{'priority'}, 10));
+print ui_table_row(hlink($text{'chain_policy'}, "chain_policy"),
+    ui_select("chain_policy", $chain->{'policy'}, \@policy_opts, 1, 0, 1));
 
-print &ui_table_end();
+print ui_table_end();
 
-print &ui_form_end([ [ undef, $text{$is_new ? 'create' : 'save'} ] ]);
+print ui_form_end([ [ undef, $text{$is_new ? 'create' : 'save'} ] ]);
 
 print <<'EOF';
 <script>
@@ -83,5 +83,5 @@ if (window.addEventListener) {
 </script>
 EOF
 
-&ui_print_footer("index.cgi?table=$in{'table'}", $text{'index_return'});
+ui_print_footer("index.cgi?table=$in{'table'}", $text{'index_return'});
 

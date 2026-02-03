@@ -6,38 +6,38 @@ require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text);
-&ReadParse();
-&error_setup($text{'chain_err'});
+ReadParse();
+error_setup($text{'chain_err'});
 
-my @tables = &get_nftables_save();
+my @tables = get_nftables_save();
 my $table = $tables[$in{'table'}];
-$table || &error($text{'chain_notable'});
+$table || error($text{'chain_notable'});
 
 my $is_new = $in{'new'} ? 1 : 0;
 my $is_rename = $in{'rename'} ? 1 : 0;
 my $name = $in{'chain_name'};
 $name =~ s/^\s+// if (defined($name));
 $name =~ s/\s+$// if (defined($name));
-$name =~ /^\w[\w-]*$/ || &error($text{'chain_ename'});
+$name =~ /^\w[\w-]*$/ || error($text{'chain_ename'});
 
 my $old = $is_rename ? $in{'chain_old'} : $name;
 $old =~ s/^\s+// if (defined($old));
 $old =~ s/\s+$// if (defined($old));
 
 if ($is_new) {
-    $table->{'chains'}->{$name} && &error($text{'chain_edup'});
+    $table->{'chains'}->{$name} && error($text{'chain_edup'});
 } elsif ($is_rename) {
-    $table->{'chains'}->{$old} || &error($text{'chain_nochain'});
+    $table->{'chains'}->{$old} || error($text{'chain_nochain'});
     if ($name ne $old && $table->{'chains'}->{$name}) {
-        &error($text{'chain_edup'});
+        error($text{'chain_edup'});
     }
 } else {
-    $table->{'chains'}->{$name} || &error($text{'chain_nochain'});
+    $table->{'chains'}->{$name} || error($text{'chain_nochain'});
 }
 
 if ($is_rename) {
     if ($name eq $old) {
-        &redirect("index.cgi?table=$in{'table'}");
+        redirect("index.cgi?table=$in{'table'}");
     }
     if ($name ne $old) {
         $table->{'chains'}->{$name} = $table->{'chains'}->{$old};
@@ -54,17 +54,17 @@ if ($is_rename) {
                 $r->{'goto'} = $name;
                 $changed = 1;
             }
-            $r->{'text'} = &format_rule_text($r) if ($changed);
+            $r->{'text'} = format_rule_text($r) if ($changed);
         }
     }
 
-    my $err = &save_configuration(@tables);
-    &error(&text('rename_chain_failed', $err)) if ($err);
-    &webmin_log("rename", "chain", $old,
+    my $err = save_configuration(@tables);
+    error(text('rename_chain_failed', $err)) if ($err);
+    webmin_log("rename", "chain", $old,
                 { 'new' => $name,
                   'table' => $table->{'name'},
                   'family' => $table->{'family'} });
-    &redirect("index.cgi?table=$in{'table'}");
+    redirect("index.cgi?table=$in{'table'}");
 }
 
 my $type = $in{'chain_type'};
@@ -81,8 +81,8 @@ $hook = undef if (!defined($hook) || $hook eq '');
 $priority = undef if (!defined($priority) || $priority eq '');
 $policy = undef if (!defined($policy) || $policy eq '');
 
-&validate_chain_base($type, $hook, $priority, $policy) ||
-    &error($text{'chain_ebase'});
+validate_chain_base($type, $hook, $priority, $policy) ||
+    error($text{'chain_ebase'});
 
 my $chain = $table->{'chains'}->{$name} || { };
 $chain->{'type'} = $type;
@@ -91,9 +91,9 @@ $chain->{'priority'} = $priority;
 $chain->{'policy'} = $policy;
 $table->{'chains'}->{$name} = $chain;
 
-my $err = &save_configuration(@tables);
-&error(&text('chain_failed', $err)) if ($err);
+my $err = save_configuration(@tables);
+error(text('chain_failed', $err)) if ($err);
 
-&webmin_log($is_new ? "create" : "modify", "chain", $name,
+webmin_log($is_new ? "create" : "modify", "chain", $name,
             { 'table' => $table->{'name'}, 'family' => $table->{'family'} });
-&redirect("index.cgi?table=$in{'table'}");
+redirect("index.cgi?table=$in{'table'}");

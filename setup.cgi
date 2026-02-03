@@ -6,53 +6,53 @@ require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text, %config);
-&ReadParse();
+ReadParse();
 if ($in{'action'} eq 'create') {
     my $type = $in{'type'};
     my @tables;
     if ($type eq 'allow_all') {
-        @tables = &create_allow_all_ruleset();
+        @tables = create_allow_all_ruleset();
     }
     elsif ($type eq 'deny_incoming') {
-        @tables = &create_deny_incoming_ruleset();
+        @tables = create_deny_incoming_ruleset();
     }
     elsif ($type eq 'deny_all') {
-        @tables = &create_deny_all_ruleset();
+        @tables = create_deny_all_ruleset();
     }
     else {
-        &error($text{'setup_invalid_type'});
+        error($text{'setup_invalid_type'});
     }
 
-    my $error = &save_configuration(@tables);
+    my $error = save_configuration(@tables);
     if ($error) {
-        &error(&text('setup_failed', $error));
+        error(text('setup_failed', $error));
     }
-    $error = &apply_restore();
+    $error = apply_restore();
     if ($error) {
-        &error(&text('setup_failed', $error));
+        error(text('setup_failed', $error));
     }
-    &webmin_log("setup", "create", $type);
-    &redirect("index.cgi");
+    webmin_log("setup", "create", $type);
+    redirect("index.cgi");
 }
 
-&ui_print_header(undef, $text{'setup_title'}, "", "intro", 1, 1);
+ui_print_header(undef, $text{'setup_title'}, "", "intro", 1, 1);
 
 print "<h3>$text{'setup_header'}</h3>";
-my $webmin_port = &get_webmin_port();
+my $webmin_port = get_webmin_port();
 print "<p>$text{'setup_desc'}</p>";
-print "<p>",&text('setup_deny_note', $webmin_port),"</p>";
+print "<p>",text('setup_deny_note', $webmin_port),"</p>";
 
-print &ui_form_start("setup.cgi");
-print &ui_hidden("action", "create");
+print ui_form_start("setup.cgi");
+print ui_hidden("action", "create");
 
 my @type_opts = (
     [ 'allow_all',     $text{'setup_allow_all'} . "<br>" ],
     [ 'deny_incoming', $text{'setup_deny_incoming'} . "<br>" ],
     [ 'deny_all',      $text{'setup_deny_all'} ],
 );
-print &ui_radio("type", "allow_all", \@type_opts);
+print ui_radio("type", "allow_all", \@type_opts);
 
-print &ui_form_end([ [ undef, $text{'setup_create'} ] ]);
+print ui_form_end([ [ undef, $text{'setup_create'} ] ]);
 
 sub create_allow_all_ruleset
 {
@@ -89,7 +89,7 @@ sub create_allow_all_ruleset
 sub create_deny_incoming_ruleset
 {
     my @tables;
-    my $webmin_port = &get_webmin_port();
+    my $webmin_port = get_webmin_port();
     my $table = {
         'name' => 'inet_filter',
         'family' => 'inet',
@@ -139,7 +139,7 @@ sub create_deny_incoming_ruleset
 sub create_deny_all_ruleset
 {
     my @tables;
-    my $webmin_port = &get_webmin_port();
+    my $webmin_port = get_webmin_port();
     my $table = {
         'name' => 'inet_filter',
         'family' => 'inet',
@@ -191,4 +191,4 @@ sub create_deny_all_ruleset
     return @tables;
 }
 
-&ui_print_footer("/", $text{'index'});
+ui_print_footer("/", $text{'index'});

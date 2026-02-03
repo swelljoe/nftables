@@ -6,44 +6,44 @@ require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text, %config);
-&ReadParse();
+ReadParse();
 my $partial = $in{'partial'};
 if (!$partial) {
-    &ui_print_header(undef, $text{'index_title'}, "", "intro", 1, 1);
+    ui_print_header(undef, $text{'index_title'}, "", "intro", 1, 1);
 }
 
 # Check for nft command
-my $cmd = $config{'nft_cmd'} || &has_command("nft");
+my $cmd = $config{'nft_cmd'} || has_command("nft");
 if (!$cmd) {
-    print &text('index_ecommand', "<tt>nft</tt>");
+    print text('index_ecommand', "<tt>nft</tt>");
     if (!$partial) {
-        &ui_print_footer("/", $text{'index'});
+        ui_print_footer("/", $text{'index'});
     }
     exit;
 }
 
 # Check if kernel supports it (basic check)
-my $out = &backquote_command("$cmd list ruleset 2>&1");
+my $out = backquote_command("$cmd list ruleset 2>&1");
 if ($? && $out !~ /no ruleset/i) {
     # If it fails and not just empty
-    print &text('index_ekernel', "<pre>$out</pre>");
+    print text('index_ekernel', "<pre>$out</pre>");
     if (!$partial) {
-        &ui_print_footer("/", $text{'index'});
+        ui_print_footer("/", $text{'index'});
     }
     exit;
 }
 
 # Load tables
-my @tables = &get_nftables_save();
+my @tables = get_nftables_save();
 my $rules_html = "";
 
 if (!@tables) {
     $rules_html .= "<b>$text{'index_none'}</b><p>\n";
-    $rules_html .= &ui_buttons_start();
-    $rules_html .= &ui_buttons_row("setup.cgi", $text{'index_setup'}, $text{'index_setupdesc'});
-    $rules_html .= &ui_buttons_row("create_table.cgi", $text{'index_table_create'},
+    $rules_html .= ui_buttons_start();
+    $rules_html .= ui_buttons_row("setup.cgi", $text{'index_setup'}, $text{'index_setupdesc'});
+    $rules_html .= ui_buttons_row("create_table.cgi", $text{'index_table_create'},
                                    $text{'index_table_createdesc'});
-    $rules_html .= &ui_buttons_end();
+    $rules_html .= ui_buttons_end();
 } else {
     # Select table
     if (!defined($in{'table'}) || $in{'table'} !~ /^\d+$/ ||
@@ -57,14 +57,14 @@ if (!@tables) {
     }
 
     if (!$partial) {
-        print &ui_form_start("index.cgi");
+        print ui_form_start("index.cgi");
         print "<div class='nftables_table_select'>\n";
-        print &text('index_change')," ";
-	print &ui_select("table", $in{'table'}, \@table_opts, 1, 0, 1, 0,
+        print text('index_change')," ";
+	print ui_select("table", $in{'table'}, \@table_opts, 1, 0, 1, 0,
                          "onchange='this.form.querySelector(\"[name=nft_submit]\").click()'");
-	print &ui_submit("", "nft_submit", 0, "style='display:none'");
+	print ui_submit("", "nft_submit", 0, "style='display:none'");
         print "</div>\n";
-        print &ui_form_end();
+        print ui_form_end();
     }
 
     # Identify current table
@@ -72,8 +72,8 @@ if (!@tables) {
 
     if ($curr) {
         # Show chains and rules
-        $rules_html .= &ui_hr();
-        $rules_html .= &ui_columns_start(
+        $rules_html .= ui_hr();
+        $rules_html .= ui_columns_start(
             [ $text{'index_chain_col'}, $text{'index_type'},
               $text{'index_hook'}, $text{'index_priority'},
               $text{'index_policy_col'}, $text{'index_rules'},
@@ -90,16 +90,16 @@ if (!@tables) {
                 my $ri = 0;
                 $rules_html_row = "<table class='nftables_rules_table' width='100%'>\n";
                 foreach my $r (@rules) {
-                    my $desc = &describe_rule($r);
-                    my $rule_link = &ui_link(
+                    my $desc = describe_rule($r);
+                    my $rule_link = ui_link(
                         "edit_rule.cgi?table=$in{'table'}&chain=".
-                        &urlize($c)."&idx=$r->{'index'}",
+                        urlize($c)."&idx=$r->{'index'}",
                         $desc);
-                    my $move = &ui_up_down_arrows(
+                    my $move = ui_up_down_arrows(
                         "move_rule.cgi?table=$in{'table'}&chain=".
-                        &urlize($c)."&idx=$r->{'index'}&dir=up",
+                        urlize($c)."&idx=$r->{'index'}&dir=up",
                         "move_rule.cgi?table=$in{'table'}&chain=".
-                        &urlize($c)."&idx=$r->{'index'}&dir=down",
+                        urlize($c)."&idx=$r->{'index'}&dir=down",
                         $ri > 0,
                         $ri < $#rules);
                     $rules_html_row .= "<tr><td>$rule_link</td>".
@@ -107,25 +107,25 @@ if (!@tables) {
                     $ri++;
                 }
                 $rules_html_row .= "<tr><td colspan='2'>".
-                    &ui_link("edit_rule.cgi?table=$in{'table'}&chain=".
-                             &urlize($c)."&new=1", $text{'index_radd'}).
+                    ui_link("edit_rule.cgi?table=$in{'table'}&chain=".
+                             urlize($c)."&new=1", $text{'index_radd'}).
                     "</td></tr>\n";
                 $rules_html_row .= "</table>";
             } else {
                 $rules_html_row = "<i>$text{'index_rules_none'}</i>";
                 $rules_html_row .= "<br>".
-                    &ui_link("edit_rule.cgi?table=$in{'table'}&chain=".
-                             &urlize($c)."&new=1", $text{'index_radd'});
+                    ui_link("edit_rule.cgi?table=$in{'table'}&chain=".
+                             urlize($c)."&new=1", $text{'index_radd'});
             }
 
             my $actions_html =
-                &ui_link("edit_chain.cgi?table=$in{'table'}&chain=".
-                         &urlize($c), $text{'index_cedit'})."<br>".
-                &ui_link("rename_chain.cgi?table=$in{'table'}&chain=".
-                         &urlize($c), $text{'index_crename'})."<br>".
-                &ui_link("delete_chain.cgi?table=$in{'table'}&chain=".
-                         &urlize($c), $text{'index_cdelete'});
-            $rules_html .= &ui_columns_row([
+                ui_link("edit_chain.cgi?table=$in{'table'}&chain=".
+                         urlize($c), $text{'index_cedit'})."<br>".
+                ui_link("rename_chain.cgi?table=$in{'table'}&chain=".
+                         urlize($c), $text{'index_crename'})."<br>".
+                ui_link("delete_chain.cgi?table=$in{'table'}&chain=".
+                         urlize($c), $text{'index_cdelete'});
+            $rules_html .= ui_columns_row([
                 $c,
                 $chain_def->{'type'} || "-",
                 $chain_def->{'hook'} || "-",
@@ -135,17 +135,17 @@ if (!@tables) {
                 $actions_html
             ]);
         }
-        $rules_html .= &ui_columns_end();
-        $rules_html .= &ui_hr();
-        $rules_html .= &ui_buttons_start();
-        $rules_html .= &ui_buttons_row(
+        $rules_html .= ui_columns_end();
+        $rules_html .= ui_hr();
+        $rules_html .= ui_buttons_start();
+        $rules_html .= ui_buttons_row(
             "edit_chain.cgi?table=$in{'table'}&new=1",
             $text{'index_chain_create'},
             $text{'index_chain_createdesc'});
-        $rules_html .= &ui_buttons_row("delete_table.cgi?table=$in{'table'}",
+        $rules_html .= ui_buttons_row("delete_table.cgi?table=$in{'table'}",
                                        $text{'index_table_delete'},
                                        $text{'index_table_deletedesc'});
-        $rules_html .= &ui_buttons_end();
+        $rules_html .= ui_buttons_end();
     }
 }
 
@@ -159,12 +159,12 @@ print $rules_html;
 print "</div>\n";
 
 if (@tables) {
-    print &ui_hr();
-    print &ui_buttons_start();
-    print &ui_buttons_row("create_table.cgi", $text{'index_table_create'},
+    print ui_hr();
+    print ui_buttons_start();
+    print ui_buttons_row("create_table.cgi", $text{'index_table_create'},
                           $text{'index_table_createdesc'});
-    print &ui_buttons_row("apply.cgi", $text{'index_apply'}, $text{'index_applydesc'});
-    print &ui_buttons_end();
+    print ui_buttons_row("apply.cgi", $text{'index_apply'}, $text{'index_applydesc'});
+    print ui_buttons_end();
 }
 
-&ui_print_footer("/", $text{'index'});
+ui_print_footer("/", $text{'index'});

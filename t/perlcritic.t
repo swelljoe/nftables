@@ -26,7 +26,7 @@ sub script_dir
     return $cwd;
 }
 
-my $bindir = &script_dir();
+my $bindir = script_dir();
 my $module_dir = "$bindir/..";
 chdir($module_dir) or die "chdir: $!";
 

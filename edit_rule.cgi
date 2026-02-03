@@ -6,8 +6,8 @@ require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text, %config);
-&ReadParse();
-my @tables = &get_nftables_save();
+ReadParse();
+my @tables = get_nftables_save();
 my $table = $tables[$in{'table'}];
 my $rule;
 my $chain_def;
@@ -36,10 +36,10 @@ sub split_multi_value
 }
 
 if ($in{'new'}) {
-    &ui_print_header(undef, $text{'edit_title_new'}, "", "intro", 1, 1);
+    ui_print_header(undef, $text{'edit_title_new'}, "", "intro", 1, 1);
     $rule = { 'chain' => $in{'chain'} };
 } else {
-    &ui_print_header(undef, $text{'edit_title_edit'}, "", "intro", 1, 1);
+    ui_print_header(undef, $text{'edit_title_edit'}, "", "intro", 1, 1);
     $rule = $table->{'rules'}->[$in{'idx'}];
 }
 if ($table && $rule->{'chain'}) {
@@ -70,8 +70,8 @@ if ($rule) {
     }
     $proto_sel ||= 'tcp' if ($in{'new'});
     $icmp_type = $rule->{'icmp_type'} || $rule->{'icmpv6_type'};
-    $ct_state_sel = &split_multi_value($rule->{'ct_state'});
-    $tcp_flags_sel = &split_multi_value($rule->{'tcp_flags'});
+    $ct_state_sel = split_multi_value($rule->{'ct_state'});
+    $tcp_flags_sel = split_multi_value($rule->{'tcp_flags'});
     $log_enabled = $rule->{'log'} || $rule->{'log_prefix'} || $rule->{'log_level'};
 }
 $advanced_open = 1 if ($action_sel && ($action_sel eq 'jump' || $action_sel eq 'goto'));
@@ -115,22 +115,22 @@ my @tcp_flags_opts = (
     map { [ $_, $_ ] } qw(fin syn rst psh ack urg ecn cwr),
 );
 
-print &ui_form_start("save_rule.cgi");
-print &ui_hidden("table", $in{'table'});
-print &ui_hidden("idx", $in{'idx'});
-print &ui_hidden("chain", $rule->{'chain'});
-print &ui_hidden("new", $in{'new'});
-print &ui_hidden("raw_extra", $raw_extra);
+print ui_form_start("save_rule.cgi");
+print ui_hidden("table", $in{'table'});
+print ui_hidden("idx", $in{'idx'});
+print ui_hidden("chain", $rule->{'chain'});
+print ui_hidden("new", $in{'new'});
+print ui_hidden("raw_extra", $raw_extra);
 
-print &ui_table_start($text{'edit_header'}, "width=100%", 2);
+print ui_table_start($text{'edit_header'}, "width=100%", 2);
 
 # Rule comment
-print &ui_table_row(hlink($text{'edit_comment'}, "comment"),
-    &ui_textbox("comment", $rule->{'comment'}, 50));
+print ui_table_row(hlink($text{'edit_comment'}, "comment"),
+    ui_textbox("comment", $rule->{'comment'}, 50));
 
 # Action
-print &ui_table_row(hlink($text{'edit_action'}, "action"),
-    &ui_select("action", $action_sel,
+print ui_table_row(hlink($text{'edit_action'}, "action"),
+    ui_select("action", $action_sel,
     [
         [ "accept", $text{'index_accept'} ],
         [ "drop", $text{'index_drop'} ],
@@ -141,14 +141,14 @@ print &ui_table_row(hlink($text{'edit_action'}, "action"),
     ]));
 
 # Addresses
-print &ui_table_row(hlink($text{'edit_saddr'}, "saddr"),
-    &ui_textbox("saddr", $rule->{'saddr'}, 30));
-print &ui_table_row(hlink($text{'edit_daddr'}, "daddr"),
-    &ui_textbox("daddr", $rule->{'daddr'}, 30));
+print ui_table_row(hlink($text{'edit_saddr'}, "saddr"),
+    ui_textbox("saddr", $rule->{'saddr'}, 30));
+print ui_table_row(hlink($text{'edit_daddr'}, "daddr"),
+    ui_textbox("daddr", $rule->{'daddr'}, 30));
 
 # Protocol
-print &ui_table_row(hlink($text{'edit_proto'}, "proto"),
-    &ui_select("proto", $proto_sel,
+print ui_table_row(hlink($text{'edit_proto'}, "proto"),
+    ui_select("proto", $proto_sel,
     [
         [ "", $text{'edit_proto_any'} ],
         [ "tcp", "TCP" ],
@@ -158,83 +158,83 @@ print &ui_table_row(hlink($text{'edit_proto'}, "proto"),
     ]));
 
 # Ports
-print &ui_table_row(hlink($text{'edit_sport'}, "sport"),
-    &ui_textbox("sport", $rule->{'sport'}, 10));
-print &ui_table_row(hlink($text{'edit_dport'}, "dport"),
-    &ui_textbox("dport", $rule->{'dport'}, 10));
+print ui_table_row(hlink($text{'edit_sport'}, "sport"),
+    ui_textbox("sport", $rule->{'sport'}, 10));
+print ui_table_row(hlink($text{'edit_dport'}, "dport"),
+    ui_textbox("dport", $rule->{'dport'}, 10));
 
-print &ui_table_end();
+print ui_table_end();
 
-print &ui_hidden_table_start($text{'edit_advanced'}, "width=100%", 2,
+print ui_hidden_table_start($text{'edit_advanced'}, "width=100%", 2,
                              "advanced", $advanced_open ? 1 : 0);
 
 # Jump/Goto target chain
-print &ui_table_row(hlink($text{'edit_jump'}, "jump"),
-    &ui_textbox("jump", $rule->{'jump'}, 20));
-print &ui_table_row(hlink($text{'edit_goto'}, "goto"),
-    &ui_textbox("goto", $rule->{'goto'}, 20));
+print ui_table_row(hlink($text{'edit_jump'}, "jump"),
+    ui_textbox("jump", $rule->{'jump'}, 20));
+print ui_table_row(hlink($text{'edit_goto'}, "goto"),
+    ui_textbox("goto", $rule->{'goto'}, 20));
 
 # Interfaces
 if ($chain_hook && $chain_hook eq 'input') {
     # Incoming interface
-    print &ui_table_row(hlink($text{'edit_iif'}, "iif"),
-        &interface_choice("iif", $rule->{'iif'}, $text{'edit_if_any'}));
+    print ui_table_row(hlink($text{'edit_iif'}, "iif"),
+        interface_choice("iif", $rule->{'iif'}, $text{'edit_if_any'}));
 }
 elsif ($chain_hook && $chain_hook eq 'output') {
     # Outgoing interface
-    print &ui_table_row(hlink($text{'edit_oif'}, "oif"),
-        &interface_choice("oif", $rule->{'oif'}, $text{'edit_if_any'}));
+    print ui_table_row(hlink($text{'edit_oif'}, "oif"),
+        interface_choice("oif", $rule->{'oif'}, $text{'edit_if_any'}));
 }
 else {
     # Forward or unknown chain - allow both
-    print &ui_table_row(hlink($text{'edit_iif'}, "iif"),
-        &interface_choice("iif", $rule->{'iif'}, $text{'edit_if_any'}));
-    print &ui_table_row(hlink($text{'edit_oif'}, "oif"),
-        &interface_choice("oif", $rule->{'oif'}, $text{'edit_if_any'}));
+    print ui_table_row(hlink($text{'edit_iif'}, "iif"),
+        interface_choice("iif", $rule->{'iif'}, $text{'edit_if_any'}));
+    print ui_table_row(hlink($text{'edit_oif'}, "oif"),
+        interface_choice("oif", $rule->{'oif'}, $text{'edit_if_any'}));
 }
 
 # ICMP type
-print &ui_table_row(hlink($text{'edit_icmp_type'}, "icmp_type"),
-    &ui_select("icmp_type", $icmp_type, \@icmp_type_opts, 1, 0, 1));
+print ui_table_row(hlink($text{'edit_icmp_type'}, "icmp_type"),
+    ui_select("icmp_type", $icmp_type, \@icmp_type_opts, 1, 0, 1));
 
 # Conntrack state
-print &ui_table_row(hlink($text{'edit_ct_state'}, "ct_state"),
-    &ui_select("ct_state", $ct_state_sel, \@ct_state_opts, 5, 1, 1));
+print ui_table_row(hlink($text{'edit_ct_state'}, "ct_state"),
+    ui_select("ct_state", $ct_state_sel, \@ct_state_opts, 5, 1, 1));
 
 # TCP flags
-print &ui_table_row(hlink($text{'edit_tcp_flags'}, "tcp_flags"),
-    &ui_select("tcp_flags", $tcp_flags_sel, \@tcp_flags_opts, 8, 1, 1));
-print &ui_table_row(hlink($text{'edit_tcp_flags_mask'}, "tcp_flags_mask"),
-    &ui_textbox("tcp_flags_mask", $rule->{'tcp_flags_mask'}, 20));
+print ui_table_row(hlink($text{'edit_tcp_flags'}, "tcp_flags"),
+    ui_select("tcp_flags", $tcp_flags_sel, \@tcp_flags_opts, 8, 1, 1));
+print ui_table_row(hlink($text{'edit_tcp_flags_mask'}, "tcp_flags_mask"),
+    ui_textbox("tcp_flags_mask", $rule->{'tcp_flags_mask'}, 20));
 
 # Limit
-print &ui_table_row(hlink($text{'edit_limit_rate'}, "limit_rate"),
-    &ui_textbox("limit_rate", $rule->{'limit_rate'}, 20));
-print &ui_table_row(hlink($text{'edit_limit_burst'}, "limit_burst"),
-    &ui_textbox("limit_burst", $rule->{'limit_burst'}, 10));
+print ui_table_row(hlink($text{'edit_limit_rate'}, "limit_rate"),
+    ui_textbox("limit_rate", $rule->{'limit_rate'}, 20));
+print ui_table_row(hlink($text{'edit_limit_burst'}, "limit_burst"),
+    ui_textbox("limit_burst", $rule->{'limit_burst'}, 10));
 
 # Log
-my $log_row = &ui_checkbox("log", 1, hlink($text{'edit_log_enable'}, "log_enable"), $log_enabled);
-$log_row .= "<br>".&text('edit_log_prefix', &ui_textbox("log_prefix", $rule->{'log_prefix'}, 20));
-$log_row .= " ".&text('edit_log_level', &ui_textbox("log_level", $rule->{'log_level'}, 10));
-print &ui_table_row($text{'edit_log'}, $log_row);
+my $log_row = ui_checkbox("log", 1, hlink($text{'edit_log_enable'}, "log_enable"), $log_enabled);
+$log_row .= "<br>".text('edit_log_prefix', ui_textbox("log_prefix", $rule->{'log_prefix'}, 20));
+$log_row .= " ".text('edit_log_level', ui_textbox("log_level", $rule->{'log_level'}, 10));
+print ui_table_row($text{'edit_log'}, $log_row);
 
 # Counter
-print &ui_table_row(hlink($text{'edit_counter'}, "counter"),
-    &ui_checkbox("counter", 1, $text{'edit_counter_enable'}, $rule->{'counter'}));
+print ui_table_row(hlink($text{'edit_counter'}, "counter"),
+    ui_checkbox("counter", 1, $text{'edit_counter_enable'}, $rule->{'counter'}));
 
-print &ui_hidden_table_end("advanced");
+print ui_hidden_table_end("advanced");
 
-print &ui_table_start($text{'edit_rule'}, "width=100%", 2);
+print ui_table_start($text{'edit_rule'}, "width=100%", 2);
 
 # Raw rule (read-only unless edit direct is checked)
-my $raw_controls = &ui_checkbox("edit_direct", 1, $text{'edit_raw_rule_direct'}, 0);
-my $raw_area = &ui_textarea("raw_rule", $rule->{'text'}, 4, 60, undef, undef,
+my $raw_controls = ui_checkbox("edit_direct", 1, $text{'edit_raw_rule_direct'}, 0);
+my $raw_area = ui_textarea("raw_rule", $rule->{'text'}, 4, 60, undef, undef,
                             "readonly='true'");
-print &ui_table_row(hlink($text{'edit_raw_rule'}, "raw_rule"), $raw_controls."<br>".$raw_area,
+print ui_table_row(hlink($text{'edit_raw_rule'}, "raw_rule"), $raw_controls."<br>".$raw_area,
                     undef, undef, ["data-column-span='all' data-column-locked='1'"]);
 
-print &ui_table_end();
+print ui_table_end();
 my @buttons;
 if ($in{'new'}) {
     push(@buttons, [ undef, $text{'create'} ]);
@@ -242,7 +242,7 @@ if ($in{'new'}) {
     push(@buttons, [ undef, $text{'save'} ]);
     push(@buttons, [ 'delete', $text{'delete'} ]);
 }
-print &ui_form_end(\@buttons);
+print ui_form_end(\@buttons);
 
 sub js_array
 {
@@ -255,8 +255,8 @@ sub js_array
     } @vals)."]";
 }
 
-my $icmp_js = &js_array(@icmp_types);
-my $icmpv6_js = &js_array(@icmpv6_types);
+my $icmp_js = js_array(@icmp_types);
+my $icmpv6_js = js_array(@icmpv6_types);
 my $icmp_any = $text{'edit_proto_any'};
 $icmp_any =~ s/\\/\\\\/g;
 $icmp_any =~ s/"/\\"/g;
@@ -530,4 +530,4 @@ print <<'EOF';
 </script>
 EOF
 
-&ui_print_footer("index.cgi?table=$in{'table'}", $text{'index_return'});
+ui_print_footer("index.cgi?table=$in{'table'}", $text{'index_return'});

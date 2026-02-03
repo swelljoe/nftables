@@ -20,7 +20,7 @@ sub script_dir
     return $cwd;
 }
 
-my $bindir = &script_dir();
+my $bindir = script_dir();
 
 my $confdir = tempdir(CLEANUP => 1);
 my $vardir = tempdir(CLEANUP => 1);
@@ -96,22 +96,22 @@ my @cases = (
 );
 
 foreach my $c (@cases) {
-    my $r = &parse_rule_text($c->{line});
+    my $r = parse_rule_text($c->{line});
     ok($r && ref($r) eq 'HASH', "$c->{name} parse hash");
     check_fields($c->{name}, $r, $c->{expect});
 
-    my $out = &format_rule_text($r);
+    my $out = format_rule_text($r);
     ok($out =~ /\S/, "$c->{name} formatted non-empty");
     if ($c->{preserve}) {
         like($out, qr/\Q$c->{preserve}\E/, "$c->{name} preserves unknowns");
     }
 
-    my $r2 = &parse_rule_text($out);
+    my $r2 = parse_rule_text($out);
     check_fields($c->{name}.' roundtrip', $r2, $c->{expect});
 }
 
 my $ruleset = "$bindir/rulesets/basic.nft";
-my @tables = &get_nftables_save($ruleset);
+my @tables = get_nftables_save($ruleset);
 ok(@tables == 1, 'ruleset table count');
 my $t = $tables[0];
 is($t->{family}, 'inet', 'ruleset family');
@@ -128,11 +128,11 @@ check_fields('ruleset r1', $rules[0], { iif => 'lo', action => 'accept' });
 check_fields('ruleset r2', $rules[1], { saddr => '192.168.1.0/24', proto => 'tcp', dport => '22', action => 'accept', comment => 'ssh' });
 check_fields('ruleset r3', $rules[2], { ct_state => 'established,related', action => 'accept' });
 
-ok(&validate_chain_base('filter', 'input', '0', 'accept'),
+ok(validate_chain_base('filter', 'input', '0', 'accept'),
    'chain base allows zero priority');
-ok(!&validate_chain_base('filter', 'input', undef, 'accept'),
+ok(!validate_chain_base('filter', 'input', undef, 'accept'),
    'chain base missing priority invalid');
-ok(&validate_chain_base(undef, undef, undef, undef),
+ok(validate_chain_base(undef, undef, undef, undef),
    'chain base none set valid');
 
 my $table_move = {
@@ -143,7 +143,7 @@ my $table_move = {
         { chain => 'input', index => 3, text => 'r3' },
     ],
 };
-ok(&move_rule_in_chain($table_move, 'input', 1, 'down'),
+ok(move_rule_in_chain($table_move, 'input', 1, 'down'),
    'move rule down returns true');
 is($table_move->{rules}->[1]->{text}, 'r3', 'rule moved down in array');
 is($table_move->{rules}->[3]->{text}, 'r1', 'rule swapped down in array');
@@ -156,7 +156,7 @@ my $table_move2 = {
         { chain => 'input', index => 1, text => 'r1' },
     ],
 };
-is(&move_rule_in_chain($table_move2, 'input', 0, 'up'), 0,
+is(move_rule_in_chain($table_move2, 'input', 0, 'up'), 0,
    'top rule cannot move up');
 
 done_testing();

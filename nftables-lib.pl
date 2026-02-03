@@ -6,14 +6,14 @@ use WebminCore;
 use strict;
 use warnings;
 our (%config, $module_config_directory);
-&init_config();
+init_config();
 
 # get_nftables_save([file])
 # Returns a list of tables and their chains/rules
 sub get_nftables_save
 {
 my ($file) = @_;
-my $cmd = $config{'nft_cmd'} || &has_command("nft");
+my $cmd = $config{'nft_cmd'} || has_command("nft");
 if (!$file) {
     if ($config{'direct'}) {
         $file = "$cmd list ruleset |";
@@ -80,7 +80,7 @@ for(my $i=0; $i<@lines; $i++) {
                'index' => scalar(@{$table->{'rules'}}),
                'line' => $lnum
            };
-           my $parsed = &parse_rule_text($rule_str);
+           my $parsed = parse_rule_text($rule_str);
            if ($parsed) {
                foreach my $k (keys %$parsed) {
                    $rule->{$k} = $parsed->{$k};
@@ -252,7 +252,7 @@ sub format_addr_expr
 my ($dir, $rule) = @_;
 my $val = $rule->{$dir};
 return if (!defined($val) || $val eq '');
-my $fam = &guess_addr_family($val, $rule->{$dir."_family"});
+my $fam = guess_addr_family($val, $rule->{$dir."_family"});
 return $fam." ".$dir." ".$val;
 }
 
@@ -314,7 +314,7 @@ my ($rule) = @_;
 return if (!$rule->{'log'} && !$rule->{'log_prefix'} && !$rule->{'log_level'});
 my @p = ("log");
 if (defined($rule->{'log_prefix'}) && $rule->{'log_prefix'} ne '') {
-    my $pfx = &escape_nft_string($rule->{'log_prefix'});
+    my $pfx = escape_nft_string($rule->{'log_prefix'});
     push(@p, "prefix", "\"".$pfx."\"");
 }
 if (defined($rule->{'log_level'}) && $rule->{'log_level'} ne '') {
@@ -328,7 +328,7 @@ sub parse_rule_text
 my ($line) = @_;
 return { } if (!defined($line));
 my %rule;
-my @tokens = &tokenize_nft_rule($line);
+my @tokens = tokenize_nft_rule($line);
 my @exprs;
 my $i = 0;
 while ($i < @tokens) {
@@ -336,14 +336,14 @@ while ($i < @tokens) {
 
     if ($tok eq 'comment' && $i+1 < @tokens) {
         my $raw = $tokens[$i]." ".$tokens[$i+1];
-        $rule{'comment'} = &unquote_nft_string($tokens[$i+1]);
+        $rule{'comment'} = unquote_nft_string($tokens[$i+1]);
         push(@exprs, { 'type' => 'comment', 'text' => $raw });
         $i += 2;
         next;
     }
     if (($tok eq 'iif' || $tok eq 'iifname') && $i+1 < @tokens) {
         my $raw = $tok." ".$tokens[$i+1];
-        $rule{'iif'} = &unquote_nft_string($tokens[$i+1]);
+        $rule{'iif'} = unquote_nft_string($tokens[$i+1]);
         $rule{'iif_type'} = $tok;
         push(@exprs, { 'type' => 'iif', 'text' => $raw });
         $i += 2;
@@ -351,7 +351,7 @@ while ($i < @tokens) {
     }
     if (($tok eq 'oif' || $tok eq 'oifname') && $i+1 < @tokens) {
         my $raw = $tok." ".$tokens[$i+1];
-        $rule{'oif'} = &unquote_nft_string($tokens[$i+1]);
+        $rule{'oif'} = unquote_nft_string($tokens[$i+1]);
         $rule{'oif_type'} = $tok;
         push(@exprs, { 'type' => 'oif', 'text' => $raw });
         $i += 2;
@@ -477,7 +477,7 @@ while ($i < @tokens) {
         my @lt = ($tok);
         while ($j < @tokens) {
             if ($tokens[$j] eq 'prefix' && $j+1 < @tokens) {
-                $rule{'log_prefix'} = &unquote_nft_string($tokens[$j+1]);
+                $rule{'log_prefix'} = unquote_nft_string($tokens[$j+1]);
                 push(@lt, $tokens[$j], $tokens[$j+1]);
                 $j += 2;
                 next;
@@ -539,7 +539,7 @@ if ($exprs && ref($exprs) eq 'ARRAY' && @$exprs) {
         if ($type eq 'iif') {
             if (!$used{'iif'} && defined($rule->{'iif'}) && $rule->{'iif'} ne '') {
                 my $iftype = $rule->{'iif_type'} || 'iif';
-                my $ival = &escape_nft_string($rule->{'iif'});
+                my $ival = escape_nft_string($rule->{'iif'});
                 push(@parts, $iftype." \"".$ival."\"");
                 $used{'iif'} = 1;
             }
@@ -548,7 +548,7 @@ if ($exprs && ref($exprs) eq 'ARRAY' && @$exprs) {
         if ($type eq 'oif') {
             if (!$used{'oif'} && defined($rule->{'oif'}) && $rule->{'oif'} ne '') {
                 my $oftype = $rule->{'oif_type'} || 'oif';
-                my $oval = &escape_nft_string($rule->{'oif'});
+                my $oval = escape_nft_string($rule->{'oif'});
                 push(@parts, $oftype." \"".$oval."\"");
                 $used{'oif'} = 1;
             }
@@ -556,7 +556,7 @@ if ($exprs && ref($exprs) eq 'ARRAY' && @$exprs) {
         }
         if ($type eq 'saddr') {
             if (!$used{'saddr'}) {
-                my $addr = &format_addr_expr('saddr', $rule);
+                my $addr = format_addr_expr('saddr', $rule);
                 if ($addr) {
                     push(@parts, $addr);
                     $used{'saddr'} = 1;
@@ -566,7 +566,7 @@ if ($exprs && ref($exprs) eq 'ARRAY' && @$exprs) {
         }
         if ($type eq 'daddr') {
             if (!$used{'daddr'}) {
-                my $addr = &format_addr_expr('daddr', $rule);
+                my $addr = format_addr_expr('daddr', $rule);
                 if ($addr) {
                     push(@parts, $addr);
                     $used{'daddr'} = 1;
@@ -576,7 +576,7 @@ if ($exprs && ref($exprs) eq 'ARRAY' && @$exprs) {
         }
         if ($type eq 'l4proto') {
             if (!$used{'l4proto'}) {
-                my $lp = &format_l4proto_expr($rule);
+                my $lp = format_l4proto_expr($rule);
                 if ($lp) {
                     push(@parts, $lp);
                     $used{'l4proto'} = 1;
@@ -586,7 +586,7 @@ if ($exprs && ref($exprs) eq 'ARRAY' && @$exprs) {
         }
         if ($type eq 'sport') {
             if (!$used{'sport'}) {
-                my $sp = &format_port_expr('sport', $rule);
+                my $sp = format_port_expr('sport', $rule);
                 if ($sp) {
                     push(@parts, $sp);
                     $used{'sport'} = 1;
@@ -596,7 +596,7 @@ if ($exprs && ref($exprs) eq 'ARRAY' && @$exprs) {
         }
         if ($type eq 'dport') {
             if (!$used{'dport'} && $rule->{'proto'} && $rule->{'dport'}) {
-                my $dp = &format_port_expr('dport', $rule);
+                my $dp = format_port_expr('dport', $rule);
                 if ($dp) {
                     push(@parts, $dp);
                     $used{'dport'} = 1;
@@ -627,7 +627,7 @@ if ($exprs && ref($exprs) eq 'ARRAY' && @$exprs) {
         }
         if ($type eq 'tcp_flags') {
             if (!$used{'tcp_flags'}) {
-                my $tf = &format_tcp_flags_expr($rule);
+                my $tf = format_tcp_flags_expr($rule);
                 if ($tf) {
                     push(@parts, $tf);
                     $used{'tcp_flags'} = 1;
@@ -637,7 +637,7 @@ if ($exprs && ref($exprs) eq 'ARRAY' && @$exprs) {
         }
         if ($type eq 'limit') {
             if (!$used{'limit'}) {
-                my $lim = &format_limit_expr($rule);
+                my $lim = format_limit_expr($rule);
                 if ($lim) {
                     push(@parts, $lim);
                     $used{'limit'} = 1;
@@ -647,7 +647,7 @@ if ($exprs && ref($exprs) eq 'ARRAY' && @$exprs) {
         }
         if ($type eq 'log') {
             if (!$used{'log'}) {
-                my $lg = &format_log_expr($rule);
+                my $lg = format_log_expr($rule);
                 if ($lg) {
                     push(@parts, $lg);
                     $used{'log'} = 1;
@@ -681,32 +681,32 @@ if ($exprs && ref($exprs) eq 'ARRAY' && @$exprs) {
 }
 if (!$used{'iif'} && defined($rule->{'iif'}) && $rule->{'iif'} ne '') {
     my $iftype = $rule->{'iif_type'} || 'iif';
-    my $ival = &escape_nft_string($rule->{'iif'});
+    my $ival = escape_nft_string($rule->{'iif'});
     push(@parts, $iftype." \"".$ival."\"");
 }
 if (!$used{'oif'} && defined($rule->{'oif'}) && $rule->{'oif'} ne '') {
     my $oftype = $rule->{'oif_type'} || 'oif';
-    my $oval = &escape_nft_string($rule->{'oif'});
+    my $oval = escape_nft_string($rule->{'oif'});
     push(@parts, $oftype." \"".$oval."\"");
 }
 if (!$used{'saddr'}) {
-    my $addr = &format_addr_expr('saddr', $rule);
+    my $addr = format_addr_expr('saddr', $rule);
     push(@parts, $addr) if ($addr);
 }
 if (!$used{'daddr'}) {
-    my $addr = &format_addr_expr('daddr', $rule);
+    my $addr = format_addr_expr('daddr', $rule);
     push(@parts, $addr) if ($addr);
 }
 if (!$used{'l4proto'}) {
-    my $lp = &format_l4proto_expr($rule);
+    my $lp = format_l4proto_expr($rule);
     push(@parts, $lp) if ($lp);
 }
 if (!$used{'sport'}) {
-    my $sp = &format_port_expr('sport', $rule);
+    my $sp = format_port_expr('sport', $rule);
     push(@parts, $sp) if ($sp);
 }
 if (!$used{'dport'}) {
-    my $dp = &format_port_expr('dport', $rule);
+    my $dp = format_port_expr('dport', $rule);
     push(@parts, $dp) if ($dp);
 }
 if (!$used{'icmp'} && $rule->{'icmp_type'}) {
@@ -716,18 +716,18 @@ if (!$used{'icmpv6'} && $rule->{'icmpv6_type'}) {
     push(@parts, "icmpv6 type ".$rule->{'icmpv6_type'});
 }
 if (!$used{'tcp_flags'}) {
-    my $tf = &format_tcp_flags_expr($rule);
+    my $tf = format_tcp_flags_expr($rule);
     push(@parts, $tf) if ($tf);
 }
 if (!$used{'ct_state'} && $rule->{'ct_state'}) {
     push(@parts, "ct state ".$rule->{'ct_state'});
 }
 if (!$used{'limit'}) {
-    my $lim = &format_limit_expr($rule);
+    my $lim = format_limit_expr($rule);
     push(@parts, $lim) if ($lim);
 }
 if (!$used{'log'}) {
-    my $lg = &format_log_expr($rule);
+    my $lg = format_log_expr($rule);
     push(@parts, $lg) if ($lg);
 }
 if (!$used{'counter'} && $rule->{'counter'}) {
@@ -743,7 +743,7 @@ if ($rule->{'action'} && !$rule->{'jump'} && !$rule->{'goto'}) {
     push(@parts, $rule->{'action'});
 }
 if (defined($rule->{'comment'}) && $rule->{'comment'} ne '') {
-    my $c = &escape_nft_string($rule->{'comment'});
+    my $c = escape_nft_string($rule->{'comment'});
     push(@parts, "comment \"".$c."\"");
 }
 my $text = join(" ", grep { defined($_) && $_ ne '' } @parts);
@@ -803,16 +803,16 @@ my ($table) = @_;
 sub save_configuration
 {
 my (@tables) = @_;
-my $out = &dump_nftables_save(@tables);
+my $out = dump_nftables_save(@tables);
 my $file = $config{'save_file'} || "$module_config_directory/nftables.conf";
 
 # Write to file
-&open_tempfile(my $fh, ">$file");
-&print_tempfile($fh, $out);
-&close_tempfile($fh);
+open_tempfile(my $fh, ">$file");
+print_tempfile($fh, $out);
+close_tempfile($fh);
 
 if ($config{'direct'}) {
-    return &apply_restore($file);
+    return apply_restore($file);
 }
 return;
 }
@@ -823,8 +823,8 @@ sub apply_restore
 {
 my ($file) = @_;
 $file ||= $config{'save_file'} || "$module_config_directory/nftables.conf";
-my $cmd = $config{'nft_cmd'} || &has_command("nft");
-my $out = &backquote_logged("$cmd -f $file 2>&1");
+my $cmd = $config{'nft_cmd'} || has_command("nft");
+my $out = backquote_logged("$cmd -f $file 2>&1");
 if ($?) {
     return "<pre>$out</pre>";
 }
@@ -837,85 +837,85 @@ sub describe_rule
 my ($r) = @_;
 my @conds;
 if ($r->{'iif'}) {
-    push(@conds, &text('index_rule_iif', &html_escape($r->{'iif'})));
+    push(@conds, text('index_rule_iif', html_escape($r->{'iif'})));
 }
 if ($r->{'oif'}) {
-    push(@conds, &text('index_rule_oif', &html_escape($r->{'oif'})));
+    push(@conds, text('index_rule_oif', html_escape($r->{'oif'})));
 }
 if ($r->{'saddr'}) {
-    push(@conds, &text('index_rule_saddr', &html_escape($r->{'saddr'})));
+    push(@conds, text('index_rule_saddr', html_escape($r->{'saddr'})));
 }
 if ($r->{'daddr'}) {
-    push(@conds, &text('index_rule_daddr', &html_escape($r->{'daddr'})));
+    push(@conds, text('index_rule_daddr', html_escape($r->{'daddr'})));
 }
 if ($r->{'l4proto'} || ($r->{'proto'} && !$r->{'dport'} && !$r->{'sport'})) {
     my $p = $r->{'l4proto'} || $r->{'proto'};
-    push(@conds, &text('index_rule_proto', &html_escape($p)));
+    push(@conds, text('index_rule_proto', html_escape($p)));
 }
 if ($r->{'sport'}) {
-    push(@conds, &text('index_rule_sport', &html_escape($r->{'sport'})));
+    push(@conds, text('index_rule_sport', html_escape($r->{'sport'})));
 }
 if ($r->{'dport'}) {
-    push(@conds, &text('index_rule_dport', &html_escape($r->{'dport'})));
+    push(@conds, text('index_rule_dport', html_escape($r->{'dport'})));
 }
 if ($r->{'icmp_type'}) {
-    push(@conds, &text('index_rule_icmp', &html_escape($r->{'icmp_type'})));
+    push(@conds, text('index_rule_icmp', html_escape($r->{'icmp_type'})));
 }
 if ($r->{'icmpv6_type'}) {
-    push(@conds, &text('index_rule_icmpv6', &html_escape($r->{'icmpv6_type'})));
+    push(@conds, text('index_rule_icmpv6', html_escape($r->{'icmpv6_type'})));
 }
 if ($r->{'ct_state'}) {
-    push(@conds, &text('index_rule_ct', &html_escape($r->{'ct_state'})));
+    push(@conds, text('index_rule_ct', html_escape($r->{'ct_state'})));
 }
 if ($r->{'tcp_flags'}) {
     my $tf = $r->{'tcp_flags'};
     if ($r->{'tcp_flags_mask'}) {
         $tf = $r->{'tcp_flags_mask'}."==".$r->{'tcp_flags'};
     }
-    push(@conds, &text('index_rule_tcpflags', &html_escape($tf)));
+    push(@conds, text('index_rule_tcpflags', html_escape($tf)));
 }
 if ($r->{'limit_rate'}) {
     my $lim = $r->{'limit_rate'};
     if ($r->{'limit_burst'}) {
         $lim .= " burst ".$r->{'limit_burst'};
     }
-    push(@conds, &text('index_rule_limit', &html_escape($lim)));
+    push(@conds, text('index_rule_limit', html_escape($lim)));
 }
 if ($r->{'log_prefix'}) {
-    push(@conds, &text('index_rule_log_prefix', &html_escape($r->{'log_prefix'})));
+    push(@conds, text('index_rule_log_prefix', html_escape($r->{'log_prefix'})));
 }
 if ($r->{'log_level'}) {
-    push(@conds, &text('index_rule_log_level', &html_escape($r->{'log_level'})));
+    push(@conds, text('index_rule_log_level', html_escape($r->{'log_level'})));
 }
 if ($r->{'log'} && !$r->{'log_prefix'} && !$r->{'log_level'}) {
-    push(@conds, &text('index_rule_log'));
+    push(@conds, text('index_rule_log'));
 }
 if ($r->{'counter'}) {
-    push(@conds, &text('index_rule_counter'));
+    push(@conds, text('index_rule_counter'));
 }
 
 my $action_label;
 if ($r->{'jump'}) {
-    $action_label = &text('index_rule_jump', &html_escape($r->{'jump'}));
+    $action_label = text('index_rule_jump', html_escape($r->{'jump'}));
 }
 elsif ($r->{'goto'}) {
-    $action_label = &text('index_rule_goto', &html_escape($r->{'goto'}));
+    $action_label = text('index_rule_goto', html_escape($r->{'goto'}));
 }
 elsif ($r->{'action'}) {
     if ($r->{'action'} eq 'return') {
-        $action_label = &text('index_return_action');
+        $action_label = text('index_return_action');
     }
     else {
-        $action_label = &text('index_'.lc($r->{'action'}));
+        $action_label = text('index_'.lc($r->{'action'}));
     }
 }
 if ($action_label) {
     if (@conds) {
-        return &text('index_rule_desc_generic', $action_label, join(", ", @conds));
+        return text('index_rule_desc_generic', $action_label, join(", ", @conds));
     }
-    return &text('index_rule_desc_action', $action_label);
+    return text('index_rule_desc_action', $action_label);
 }
-return &html_escape($r->{'text'});
+return html_escape($r->{'text'});
 }
 
 # interface_choice(name, value, blanktext)
@@ -923,12 +923,12 @@ return &html_escape($r->{'text'});
 sub interface_choice
 {
 my ($name, $value, $blanktext) = @_;
-if (&foreign_check("net")) {
-    &foreign_require("net", "net-lib.pl");
-    return &net::interface_choice($name, $value, $blanktext, 0, 1);
+if (foreign_check("net")) {
+    foreign_require("net", "net-lib.pl");
+    return net::interface_choice($name, $value, $blanktext, 0, 1);
 }
 else {
-    return &ui_textbox($name, $value, 20);
+    return ui_textbox($name, $value, 20);
 }
 }
 
@@ -937,7 +937,7 @@ else {
 sub get_webmin_port
 {
 my %miniserv;
-if (&get_miniserv_config(\%miniserv) && $miniserv{'port'} =~ /^\d+$/) {
+if (get_miniserv_config(\%miniserv) && $miniserv{'port'} =~ /^\d+$/) {
     return $miniserv{'port'};
 }
 return 10000;

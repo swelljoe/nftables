@@ -6,9 +6,9 @@ require './nftables-lib.pl'; ## no critic
 use strict;
 use warnings;
 our (%in, %text, %config);
-&ReadParse();
-&error_setup($text{'save_err'});
-my @tables = &get_nftables_save();
+ReadParse();
+error_setup($text{'save_err'});
+my @tables = get_nftables_save();
 my $table = $tables[$in{'table'}];
 
 sub join_multi_value
@@ -25,7 +25,7 @@ if ($in{'delete'}) {
     # Delete the rule
     my $rule = $table->{'rules'}->[$in{'idx'}];
     splice(@{$table->{'rules'}}, $in{'idx'}, 1);
-    &webmin_log("delete", "rule", $rule ? $rule->{'text'} : undef);
+    webmin_log("delete", "rule", $rule ? $rule->{'text'} : undef);
 } else {
     my $rule = {};
     if ($in{'new'}) {
@@ -40,8 +40,8 @@ if ($in{'delete'}) {
         $raw =~ s/\r//g if (defined($raw));
         $raw =~ s/^\s+// if (defined($raw));
         $raw =~ s/\s+$// if (defined($raw));
-        &error($text{'save_raw_empty'}) if (!defined($raw) || $raw eq '');
-        &error($text{'save_raw_multiline'}) if ($raw =~ /[\r\n]/);
+        error($text{'save_raw_empty'}) if (!defined($raw) || $raw eq '');
+        error($text{'save_raw_multiline'}) if ($raw =~ /[\r\n]/);
         $rule->{'text'} = $raw;
     }
     else {
@@ -62,8 +62,8 @@ if ($in{'delete'}) {
 
         $rule->{'saddr'} = (defined($in{'saddr'}) && $in{'saddr'} ne '') ? $in{'saddr'} : undef;
         $rule->{'daddr'} = (defined($in{'daddr'}) && $in{'daddr'} ne '') ? $in{'daddr'} : undef;
-        $rule->{'saddr_family'} = $rule->{'saddr'} ? &guess_addr_family($rule->{'saddr'}) : undef;
-        $rule->{'daddr_family'} = $rule->{'daddr'} ? &guess_addr_family($rule->{'daddr'}) : undef;
+        $rule->{'saddr_family'} = $rule->{'saddr'} ? guess_addr_family($rule->{'saddr'}) : undef;
+        $rule->{'daddr_family'} = $rule->{'daddr'} ? guess_addr_family($rule->{'daddr'}) : undef;
 
         my $proto = $in{'proto'};
         $proto = undef if (defined($proto) && $proto eq '');
@@ -109,8 +109,8 @@ if ($in{'delete'}) {
             $rule->{'l4proto_family'} = 'meta';
         }
 
-        my $ct_state = &join_multi_value($in{'ct_state'});
-        my $tcp_flags = &join_multi_value($in{'tcp_flags'});
+        my $ct_state = join_multi_value($in{'ct_state'});
+        my $tcp_flags = join_multi_value($in{'tcp_flags'});
         $rule->{'ct_state'} = defined($ct_state) ? $ct_state : undef;
         $rule->{'tcp_flags'} = defined($tcp_flags) ? $tcp_flags : undef;
         $rule->{'tcp_flags_mask'} = (defined($in{'tcp_flags_mask'}) && $in{'tcp_flags_mask'} ne '') ? $in{'tcp_flags_mask'} : undef;
@@ -130,7 +130,7 @@ if ($in{'delete'}) {
         $rule->{'iif'} = (defined($iif) && $iif ne '') ? $iif : undef;
         $rule->{'oif'} = (defined($oif) && $oif ne '') ? $oif : undef;
 
-        $rule->{'text'} = &format_rule_text($rule);
+        $rule->{'text'} = format_rule_text($rule);
     }
 
     if ($in{'new'}) {
@@ -138,20 +138,20 @@ if ($in{'delete'}) {
     }
 
     if ($in{'edit_direct'}) {
-        my $cmd = $config{'nft_cmd'} || &has_command("nft");
+        my $cmd = $config{'nft_cmd'} || has_command("nft");
         if ($cmd) {
-            my $tmp = &tempname();
-            &open_tempfile(my $fh, ">$tmp");
-            &print_tempfile($fh, &dump_nftables_save(@tables));
-            &close_tempfile($fh);
-            my $out = &backquote_logged("$cmd -c -f $tmp 2>&1");
-            &unlink_file($tmp);
-            &error(&text('save_invalid_rule', "<pre>$out</pre>")) if ($?);
+            my $tmp = tempname();
+            open_tempfile(my $fh, ">$tmp");
+            print_tempfile($fh, dump_nftables_save(@tables));
+            close_tempfile($fh);
+            my $out = backquote_logged("$cmd -c -f $tmp 2>&1");
+            unlink_file($tmp);
+            error(text('save_invalid_rule', "<pre>$out</pre>")) if ($?);
         }
     }
 
-    &webmin_log("save", $in{'new'} ? "create" : "modify", $rule->{'text'});
+    webmin_log("save", $in{'new'} ? "create" : "modify", $rule->{'text'});
 }
-my $err = &save_configuration(@tables);
-&error(&text('save_failed', $err)) if ($err);
-&redirect("index.cgi?table=$in{'table'}");
+my $err = save_configuration(@tables);
+error(text('save_failed', $err)) if ($err);
+redirect("index.cgi?table=$in{'table'}");
